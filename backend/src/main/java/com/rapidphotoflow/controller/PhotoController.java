@@ -3,6 +3,7 @@ package com.rapidphotoflow.controller;
 import com.rapidphotoflow.domain.Photo;
 import com.rapidphotoflow.domain.PhotoStatus;
 import com.rapidphotoflow.dto.ActionRequest;
+import com.rapidphotoflow.dto.AddTagRequest;
 import com.rapidphotoflow.dto.BulkActionRequest;
 import com.rapidphotoflow.dto.BulkActionResponse;
 import com.rapidphotoflow.dto.PhotoDTO;
@@ -48,15 +49,24 @@ public class PhotoController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all photos", description = "Retrieve all photos with optional status filter")
+    @Operation(summary = "Get all photos", description = "Retrieve all photos with optional status and tag filters")
     public ResponseEntity<PhotoListResponse> getPhotos(
-            @RequestParam(required = false) PhotoStatus status) {
+            @RequestParam(required = false) PhotoStatus status,
+            @RequestParam(required = false) String tag) {
 
         List<Photo> photos;
         if (status != null) {
             photos = photoService.getPhotosByStatus(status);
         } else {
             photos = photoService.getAllPhotos();
+        }
+
+        // Apply tag filter if provided
+        if (tag != null && !tag.isBlank()) {
+            String normalizedTag = tag.toLowerCase().trim();
+            photos = photos.stream()
+                    .filter(photo -> photo.getTags() != null && photo.getTags().contains(normalizedTag))
+                    .collect(Collectors.toList());
         }
 
         List<PhotoDTO> dtos = photos.stream()
@@ -181,5 +191,31 @@ public class PhotoController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(PhotoListResponse.of(dtos));
+    }
+
+    @PostMapping("/{id}/tags")
+    @Operation(summary = "Add tag to photo", description = "Add a tag to a specific photo")
+    public ResponseEntity<PhotoDTO> addTag(
+            @PathVariable UUID id,
+            @Valid @RequestBody AddTagRequest request) {
+        try {
+            Photo photo = photoService.addTag(id, request.getTag());
+            return ResponseEntity.ok(PhotoDTO.fromEntity(photo));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @DeleteMapping("/{id}/tags/{tag}")
+    @Operation(summary = "Remove tag from photo", description = "Remove a tag from a specific photo")
+    public ResponseEntity<PhotoDTO> removeTag(
+            @PathVariable UUID id,
+            @PathVariable String tag) {
+        try {
+            Photo photo = photoService.removeTag(id, tag);
+            return ResponseEntity.ok(PhotoDTO.fromEntity(photo));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

@@ -9,6 +9,7 @@ import type {
 } from "./types";
 
 const API_BASE = "http://localhost:8080/api";
+const AI_SERVICE_BASE = "http://localhost:3001/api";
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -161,6 +162,24 @@ export const photoClient = {
   getPhotoContentUrl(id: string): string {
     return `${API_BASE}/photos/${id}/content`;
   },
+
+  async addTag(photoId: string, tag: string): Promise<Photo> {
+    return fetchJson<Photo>(`${API_BASE}/photos/${photoId}/tags`, {
+      method: "POST",
+      body: JSON.stringify({ tag }),
+    });
+  },
+
+  async removeTag(photoId: string, tag: string): Promise<Photo> {
+    const encodedTag = encodeURIComponent(tag);
+    const response = await fetch(`${API_BASE}/photos/${photoId}/tags/${encodedTag}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to remove tag: ${response.status}`);
+    }
+    return response.json();
+  },
 };
 
 export const eventClient = {
@@ -187,6 +206,48 @@ export const seedClient = {
 
   async clearData(): Promise<void> {
     await fetch(`${API_BASE}/seed`, { method: "DELETE" });
+  },
+};
+
+export interface AutoTagResponse {
+  success: boolean;
+  tags: string[];
+  failedTags?: string[];
+  applied?: boolean;
+  error?: string;
+}
+
+export const aiClient = {
+  /**
+   * Check if the AI service is available
+   */
+  async healthCheck(): Promise<boolean> {
+    try {
+      const response = await fetch(`${AI_SERVICE_BASE.replace('/api', '')}/health`);
+      return response.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  /**
+   * Analyze a photo and get suggested tags (without applying them)
+   */
+  async analyzeTags(photoId: string): Promise<AutoTagResponse> {
+    return fetchJson<AutoTagResponse>(`${AI_SERVICE_BASE}/analyze`, {
+      method: "POST",
+      body: JSON.stringify({ photoId }),
+    });
+  },
+
+  /**
+   * Analyze a photo and automatically apply the generated tags
+   */
+  async autoTag(photoId: string): Promise<AutoTagResponse> {
+    return fetchJson<AutoTagResponse>(`${AI_SERVICE_BASE}/analyze-and-apply`, {
+      method: "POST",
+      body: JSON.stringify({ photoId }),
+    });
   },
 };
 

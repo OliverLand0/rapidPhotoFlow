@@ -7,5 +7,8 @@ public enum EventType {
     PROCESSING_FAILED,
     APPROVED,
     REJECTED,
-    RETRY_REQUESTED
+    RETRY_REQUESTED,
+    TAG_ADDED,
+    TAG_REMOVED,
+    AUTO_TAGGED
 }

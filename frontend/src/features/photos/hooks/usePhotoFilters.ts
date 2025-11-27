@@ -26,6 +26,7 @@ export function usePhotoFilters(
   const { initialSort = "newest", pageSize = 12 } = options;
 
   const [search, setSearch] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<SortOption>(initialSort);
   const [currentPage, setCurrentPage] = useState(0);
 
@@ -37,12 +38,21 @@ export function usePhotoFilters(
       result = result.filter((p) => p.status === statusFilter);
     }
 
-    // Apply search filter
+    // Apply selected tags filter (photo must have ALL selected tags)
+    if (selectedTags.length > 0) {
+      result = result.filter((p) =>
+        selectedTags.every((tag) => p.tags?.includes(tag))
+      );
+    }
+
+    // Apply search filter (searches filename and tags)
     if (search.trim()) {
       const searchLower = search.toLowerCase();
-      result = result.filter((p) =>
-        p.filename.toLowerCase().includes(searchLower)
-      );
+      result = result.filter((p) => {
+        const matchesFilename = p.filename.toLowerCase().includes(searchLower);
+        const matchesTags = p.tags?.some(tag => tag.toLowerCase().includes(searchLower));
+        return matchesFilename || matchesTags;
+      });
     }
 
     // Apply sorting
@@ -60,7 +70,7 @@ export function usePhotoFilters(
     });
 
     return result;
-  }, [photos, statusFilter, search, sortBy]);
+  }, [photos, statusFilter, selectedTags, search, sortBy]);
 
   // Paginate the filtered results
   const paginatedPhotos = useMemo(() => {
@@ -71,19 +81,22 @@ export function usePhotoFilters(
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(0);
-  }, [search, sortBy, statusFilter]);
+  }, [search, selectedTags, sortBy, statusFilter]);
 
   const clearFilters = useCallback(() => {
     setSearch("");
+    setSelectedTags([]);
     setSortBy("newest");
     setCurrentPage(0);
   }, []);
 
-  const hasActiveFilters = search.trim() !== "" || sortBy !== "newest";
+  const hasActiveFilters = search.trim() !== "" || selectedTags.length > 0 || sortBy !== "newest";
 
   return {
     search,
     setSearch,
+    selectedTags,
+    setSelectedTags,
     sortBy,
     setSortBy,
     filteredPhotos: paginatedPhotos,

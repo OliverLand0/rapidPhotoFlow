@@ -7,6 +7,8 @@ describe("PhotoFilters", () => {
   const defaultProps = {
     search: "",
     onSearchChange: vi.fn(),
+    selectedTags: [] as string[],
+    onTagsChange: vi.fn(),
     sortBy: "newest" as const,
     onSortChange: vi.fn(),
     hasActiveFilters: false,
@@ -17,7 +19,7 @@ describe("PhotoFilters", () => {
   it("should render search input", () => {
     render(<PhotoFilters {...defaultProps} />);
 
-    expect(screen.getByPlaceholderText("Search by filename...")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search by filename or tag...")).toBeInTheDocument();
   });
 
   it("should render sort select", () => {
@@ -29,7 +31,7 @@ describe("PhotoFilters", () => {
   it("should display search value", () => {
     render(<PhotoFilters {...defaultProps} search="beach" />);
 
-    expect(screen.getByPlaceholderText("Search by filename...")).toHaveValue("beach");
+    expect(screen.getByPlaceholderText("Search by filename or tag...")).toHaveValue("beach");
   });
 
   it("should call onSearchChange when typing in search", async () => {
@@ -38,7 +40,7 @@ describe("PhotoFilters", () => {
 
     render(<PhotoFilters {...defaultProps} onSearchChange={handleSearchChange} />);
 
-    await user.type(screen.getByPlaceholderText("Search by filename..."), "test");
+    await user.type(screen.getByPlaceholderText("Search by filename or tag..."), "test");
 
     expect(handleSearchChange).toHaveBeenCalled();
   });

@@ -6,6 +6,8 @@ import lombok.Data;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Data
@@ -21,6 +23,8 @@ public class Photo {
     private String failureReason;
     private Instant uploadedAt;
     private Instant updatedAt;
+    @Builder.Default
+    private Set<String> tags = new HashSet<>();
 
     public static String computeHash(byte[] content) {
         try {
@@ -100,5 +104,42 @@ public class Photo {
         this.status = PhotoStatus.PENDING;
         this.failureReason = null;
         this.updatedAt = Instant.now();
+    }
+
+    public boolean addTag(String tag) {
+        if (tag == null || tag.isBlank()) {
+            return false;
+        }
+        String normalizedTag = tag.toLowerCase().trim();
+        if (normalizedTag.isEmpty()) {
+            return false;
+        }
+        if (this.tags == null) {
+            this.tags = new HashSet<>();
+        }
+        boolean added = this.tags.add(normalizedTag);
+        if (added) {
+            this.updatedAt = Instant.now();
+        }
+        return added;
+    }
+
+    public boolean removeTag(String tag) {
+        if (tag == null || this.tags == null) {
+            return false;
+        }
+        String normalizedTag = tag.toLowerCase().trim();
+        boolean removed = this.tags.remove(normalizedTag);
+        if (removed) {
+            this.updatedAt = Instant.now();
+        }
+        return removed;
+    }
+
+    public void clearTags() {
+        if (this.tags != null && !this.tags.isEmpty()) {
+            this.tags.clear();
+            this.updatedAt = Instant.now();
+        }
     }
 }

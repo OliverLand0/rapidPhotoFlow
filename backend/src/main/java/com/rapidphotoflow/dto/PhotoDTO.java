@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -19,6 +21,7 @@ public class PhotoDTO {
     private String failureReason;
     private Instant uploadedAt;
     private Instant updatedAt;
+    private List<String> tags;
 
     public static PhotoDTO fromEntity(Photo photo) {
         return PhotoDTO.builder()
@@ -30,6 +33,7 @@ public class PhotoDTO {
                 .failureReason(photo.getFailureReason())
                 .uploadedAt(photo.getUploadedAt())
                 .updatedAt(photo.getUpdatedAt())
+                .tags(photo.getTags() != null ? new ArrayList<>(photo.getTags()) : new ArrayList<>())
                 .build();
     }
 }

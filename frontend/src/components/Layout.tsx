@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Link, Outlet } from "react-router-dom";
 import { Upload, Grid3X3, Info } from "lucide-react";
 import { cn } from "../lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
@@ -23,13 +23,21 @@ export function Layout() {
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
           {/* Left side: Logo + Nav */}
           <div className="flex items-center gap-6">
-            <button
-              onClick={() => setAboutOpen(true)}
-              className="font-semibold text-lg hover:text-primary transition-colors flex items-center gap-2"
-            >
-              RapidPhotoFlow
-              <Info className="h-4 w-4 text-muted-foreground" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <Link
+                to="/"
+                className="font-semibold text-lg hover:text-primary transition-colors"
+              >
+                RapidPhotoFlow
+              </Link>
+              <button
+                onClick={() => setAboutOpen(true)}
+                className="p-1 rounded-md hover:bg-muted transition-colors"
+                aria-label="About RapidPhotoFlow"
+              >
+                <Info className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+              </button>
+            </div>
             <nav className="flex items-center gap-1">
               {navItems.map((item) => (
                 <NavLink

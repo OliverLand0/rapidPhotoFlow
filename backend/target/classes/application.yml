@@ -17,6 +17,12 @@ springdoc:
     path: /swagger-ui.html
     operationsSorter: method
 
+# AI Service configuration
+ai:
+  service:
+    url: http://localhost:3001
+    auto-tag-on-upload: false  # Disabled by default - controlled via frontend toggle
+
 # Logging
 logging:
   level:

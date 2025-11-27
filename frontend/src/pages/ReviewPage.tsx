@@ -1,9 +1,12 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ImageOff, Search, X, Copy, Loader2 } from "lucide-react";
+import { ImageOff, Search, X, Copy, Loader2, Keyboard } from "lucide-react";
 import { usePhotos } from "../lib/PhotosContext";
 import { usePhotoFilters, type StatusFilter } from "../features/photos/hooks/usePhotoFilters";
 import { usePhotoSelection } from "../features/photos/hooks/usePhotoSelection";
+import { usePhotoActions } from "../features/photos/hooks/usePhotoActions";
+import { useKeyboardShortcuts } from "../features/photos/hooks/useKeyboardShortcuts";
+import { useSavedViews } from "../features/photos/hooks/useSavedViews";
 import { PhotoCard } from "../features/photos/components/PhotoCard";
 import { EventLogPanel } from "../features/events/components/EventLogPanel";
 import { EmptyState } from "../components/shared/EmptyState";
@@ -12,12 +15,14 @@ import { PhotoFilters } from "../components/shared/PhotoFilters";
 import { Pagination } from "../components/shared/Pagination";
 import { BulkActionBar } from "../components/shared/BulkActionBar";
 import { PhotoPreviewModal } from "../components/shared/PhotoPreviewModal";
+import { KeyboardShortcutsModal } from "../components/shared/KeyboardShortcutsModal";
+import { SavedViewsDropdown } from "../components/shared/SavedViewsDropdown";
 import { Checkbox } from "../components/ui/checkbox";
 import { Button } from "../components/ui/button";
 import { useToast } from "../components/ui/toast";
 import { cn } from "../lib/utils";
 import { photoClient } from "../lib/api/client";
-import type { Photo, BulkActionResponse } from "../lib/api/types";
+import type { Photo, BulkActionResponse, ActionType, SavedView } from "../lib/api/types";
 
 type ReviewFilter = "PROCESSED" | "FAILED" | "APPROVED" | "REJECTED" | "ALL";
 
@@ -31,13 +36,32 @@ const tabs: { value: ReviewFilter; label: string }[] = [
 
 export function ReviewPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [statusFilter, setStatusFilter] = useState<ReviewFilter>("PROCESSED");
+
+  // Get initial status from URL or default to PROCESSED
+  const urlStatus = searchParams.get("status") as ReviewFilter | null;
+  const validStatuses: ReviewFilter[] = ["PROCESSED", "FAILED", "APPROVED", "REJECTED", "ALL"];
+  const initialStatus = urlStatus && validStatuses.includes(urlStatus) ? urlStatus : "PROCESSED";
+
+  const [statusFilter, setStatusFilter] = useState<ReviewFilter>(initialStatus);
   const [previewPhoto, setPreviewPhoto] = useState<Photo | null>(null);
   const [isRemovingDuplicates, setIsRemovingDuplicates] = useState(false);
+  const [focusedPhotoId, setFocusedPhotoId] = useState<string | null>(null);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const highlightedPhotoId = searchParams.get("photoId");
   const { toast } = useToast();
+  const photoGridRef = useRef<HTMLDivElement>(null);
+
+  // Sync URL status param with state when URL changes
+  useEffect(() => {
+    const newStatus = searchParams.get("status") as ReviewFilter | null;
+    if (newStatus && validStatuses.includes(newStatus) && newStatus !== statusFilter) {
+      setStatusFilter(newStatus);
+    }
+  }, [searchParams]);
 
   const { photos, isLoading, setPhotos } = usePhotos();
+  const { approve, reject, retry } = usePhotoActions();
+  const { views, presetViews, userViews, createView, deleteView } = useSavedViews();
 
   // Selection state
   const {
@@ -65,9 +89,25 @@ export function ReviewPage() {
     ["PROCESSED", "FAILED", "APPROVED", "REJECTED"].includes(p.status)
   );
 
+  // Extract unique filenames and tags for autocomplete
+  const allFilenames = useMemo(
+    () => reviewEligiblePhotos.map((p) => p.filename),
+    [reviewEligiblePhotos]
+  );
+
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    reviewEligiblePhotos.forEach((p) => {
+      p.tags?.forEach((tag) => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [reviewEligiblePhotos]);
+
   const {
     search,
     setSearch,
+    selectedTags,
+    setSelectedTags,
     sortBy,
     setSortBy,
     filteredPhotos,
@@ -78,6 +118,47 @@ export function ReviewPage() {
     setCurrentPage,
     pageSize,
   } = usePhotoFilters(reviewEligiblePhotos, statusFilter as StatusFilter);
+
+  // Saved views handlers
+  const handleSelectView = useCallback(
+    (view: SavedView) => {
+      setStatusFilter(view.filters.status as ReviewFilter);
+      setSearch(view.filters.search);
+      setSortBy(view.filters.sort);
+      setCurrentPage(1);
+      toast({
+        type: "info",
+        title: `Applied view: ${view.name}`,
+      });
+    },
+    [setSearch, setSortBy, setCurrentPage, toast]
+  );
+
+  const handleCreateView = useCallback(
+    (name: string) => {
+      createView(name, {
+        search,
+        status: statusFilter as StatusFilter,
+        sort: sortBy,
+      });
+      toast({
+        type: "success",
+        title: `Saved view: ${name}`,
+      });
+    },
+    [createView, search, statusFilter, sortBy, toast]
+  );
+
+  const handleDeleteView = useCallback(
+    (id: string) => {
+      deleteView(id);
+      toast({
+        type: "info",
+        title: "View deleted",
+      });
+    },
+    [deleteView, toast]
+  );
 
   const handlePhotoAction = useCallback(
     (updatedPhoto: Photo) => {
@@ -135,10 +216,23 @@ export function ReviewPage() {
     (photoId: string) => {
       const photo = photos.find((p) => p.id === photoId);
       if (photo) {
+        // Switch to ALL tab to ensure photo is visible
+        setStatusFilter("ALL");
+        // Clear any search filters that might hide the photo
+        setSearch("");
+        // Set focus for keyboard navigation
+        setFocusedPhotoId(photoId);
+        // Set URL param for highlight styling (triggers scroll in useEffect)
+        setSearchParams({ photoId });
+        // Open the preview modal
         setPreviewPhoto(photo);
+        // Clear highlight after 3 seconds
+        setTimeout(() => {
+          setSearchParams({});
+        }, 3000);
       }
     },
-    [photos]
+    [photos, setSearchParams, setSearch]
   );
 
   const handlePreviewNavigate = useCallback((photo: Photo) => {
@@ -179,6 +273,99 @@ export function ReviewPage() {
       setIsRemovingDuplicates(false);
     }
   }, [setPhotos, toast]);
+
+  // Keyboard shortcut action handler (single photo)
+  const handleKeyboardAction = useCallback(
+    async (photoId: string, action: ActionType) => {
+      const actionFn = action === "approve" ? approve : action === "reject" ? reject : retry;
+      try {
+        const updated = await actionFn(photoId);
+        if (updated) {
+          handlePhotoAction(updated);
+          toast({
+            type: "success",
+            title: `Photo ${action}${action === "retry" ? " requested" : action === "approve" ? "d" : "ed"}`,
+          });
+        }
+      } catch (error) {
+        toast({
+          type: "error",
+          title: `Failed to ${action} photo`,
+        });
+      }
+    },
+    [approve, reject, retry, handlePhotoAction, toast]
+  );
+
+  // Keyboard shortcut bulk action handler
+  const handleKeyboardBulkAction = useCallback(
+    async (photoIds: string[], action: ActionType) => {
+      try {
+        const response = await photoClient.performBulkAction(photoIds, action);
+        // Update photos with the new states from successful actions
+        setPhotos((prev) =>
+          prev.map((p) => {
+            const updated = response.success.find((s) => s.id === p.id);
+            return updated || p;
+          })
+        );
+        clearSelection();
+
+        const actionVerb = action === "retry" ? "retried" : action === "approve" ? "approved" : "rejected";
+        if (response.errorCount > 0) {
+          toast({
+            type: "warning",
+            title: `${response.successCount} ${actionVerb}, ${response.errorCount} failed`,
+          });
+        } else {
+          toast({
+            type: "success",
+            title: `${response.successCount} photo${response.successCount !== 1 ? "s" : ""} ${actionVerb}`,
+          });
+        }
+      } catch (error) {
+        toast({
+          type: "error",
+          title: `Failed to ${action} photos`,
+        });
+      }
+    },
+    [setPhotos, clearSelection, toast]
+  );
+
+  // Keyboard shortcuts hook
+  useKeyboardShortcuts({
+    photos: filteredPhotos,
+    focusedPhotoId,
+    setFocusedPhotoId,
+    selectedIds,
+    toggleSelection: toggle,
+    selectAll,
+    clearSelection,
+    onAction: handleKeyboardAction,
+    onBulkAction: handleKeyboardBulkAction,
+    onPreview: handlePhotoClick,
+    onClosePreview: () => setPreviewPhoto(null),
+    isPreviewOpen: previewPhoto !== null,
+    showHelp: () => setShowShortcutsModal(true),
+  });
+
+  // Scroll focused or highlighted photo into view
+  useEffect(() => {
+    const targetId = focusedPhotoId || highlightedPhotoId;
+    if (targetId && photoGridRef.current) {
+      // Delay to ensure the photo is rendered after filter changes
+      const timeoutId = setTimeout(() => {
+        const photoElement = photoGridRef.current?.querySelector(
+          `[data-photo-id="${targetId}"]`
+        );
+        if (photoElement) {
+          photoElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [focusedPhotoId, highlightedPhotoId, filteredPhotos]);
 
   return (
     <div className="h-full">
@@ -251,19 +438,44 @@ export function ReviewPage() {
           <PhotoFilters
             search={search}
             onSearchChange={setSearch}
+            selectedTags={selectedTags}
+            onTagsChange={setSelectedTags}
             sortBy={sortBy}
             onSortChange={setSortBy}
             hasActiveFilters={hasActiveFilters}
             onClear={clearFilters}
             resultCount={totalFilteredCount}
+            filenames={allFilenames}
+            tags={allTags}
           />
         </div>
+        <SavedViewsDropdown
+          views={views}
+          presetViews={presetViews}
+          userViews={userViews}
+          currentFilters={{
+            search,
+            status: statusFilter as StatusFilter,
+            sort: sortBy,
+          }}
+          onSelectView={handleSelectView}
+          onCreateView={handleCreateView}
+          onDeleteView={handleDeleteView}
+        />
+        <button
+          onClick={() => setShowShortcutsModal(true)}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Keyboard className="w-4 h-4" />
+          <span className="hidden sm:inline">Shortcuts</span>
+          <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">?</kbd>
+        </button>
       </div>
 
       {/* Two-column layout */}
       <div className="flex gap-6 h-[calc(100vh-280px)]">
         {/* Photo Grid */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" ref={photoGridRef}>
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -295,6 +507,7 @@ export function ReviewPage() {
                     selected={isSelected(photo.id)}
                     onSelectionChange={handleSelectionChange}
                     highlighted={photo.id === highlightedPhotoId}
+                    focused={photo.id === focusedPhotoId}
                   />
                 ))}
               </div>
@@ -333,6 +546,12 @@ export function ReviewPage() {
           onNavigate={handlePreviewNavigate}
         />
       )}
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
+      />
     </div>
   );
 }

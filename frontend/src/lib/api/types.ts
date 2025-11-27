@@ -13,7 +13,10 @@ export type EventType =
   | "PROCESSING_FAILED"
   | "APPROVED"
   | "REJECTED"
-  | "RETRY_REQUESTED";
+  | "RETRY_REQUESTED"
+  | "TAG_ADDED"
+  | "TAG_REMOVED"
+  | "AUTO_TAGGED";
 
 export interface Photo {
   id: string;
@@ -24,6 +27,7 @@ export interface Photo {
   failureReason: string | null;
   uploadedAt: string;
   updatedAt: string;
+  tags: string[];
 }
 
 export interface EventLog {
@@ -56,4 +60,16 @@ export interface BulkActionResponse {
   errors: Record<string, string>;
   successCount: number;
   errorCount: number;
+}
+
+export interface SavedView {
+  id: string;
+  name: string;
+  createdAt: string;
+  filters: {
+    search: string;
+    status: PhotoStatus | "ALL";
+    sort: "newest" | "oldest" | "status";
+    tag?: string | null;
+  };
 }

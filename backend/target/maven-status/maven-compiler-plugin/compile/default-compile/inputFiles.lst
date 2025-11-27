@@ -1,5 +1,6 @@
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/repository/InMemoryEventRepository.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/controller/SeedController.java
+/Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/service/AiTaggingService.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/RapidPhotoFlowApplication.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/domain/PhotoStatus.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/dto/BulkActionRequest.java
@@ -13,6 +14,7 @@
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/repository/InMemoryPhotoRepository.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/dto/StatusCountDTO.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/service/ProcessorService.java
+/Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/dto/AddTagRequest.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/dto/PhotoListResponse.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/dto/PhotoDTO.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/dto/EventListResponse.java

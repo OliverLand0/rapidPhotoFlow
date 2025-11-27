@@ -1,5 +1,5 @@
-import { Search, X } from "lucide-react";
-import { Input } from "../ui/input";
+import { X } from "lucide-react";
+import { SearchAutocomplete } from "./SearchAutocomplete";
 import { Select } from "../ui/select";
 import { Button } from "../ui/button";
 import type { SortOption } from "../../features/photos/hooks/usePhotoFilters";
@@ -7,11 +7,15 @@ import type { SortOption } from "../../features/photos/hooks/usePhotoFilters";
 interface PhotoFiltersProps {
   search: string;
   onSearchChange: (value: string) => void;
+  selectedTags: string[];
+  onTagsChange: (tags: string[]) => void;
   sortBy: SortOption;
   onSortChange: (value: SortOption) => void;
   hasActiveFilters: boolean;
   onClear: () => void;
   resultCount: number;
+  filenames?: string[];
+  tags?: string[];
 }
 
 const sortOptions = [
@@ -23,23 +27,28 @@ const sortOptions = [
 export function PhotoFilters({
   search,
   onSearchChange,
+  selectedTags,
+  onTagsChange,
   sortBy,
   onSortChange,
   hasActiveFilters,
   onClear,
   resultCount,
+  filenames = [],
+  tags = [],
 }: PhotoFiltersProps) {
   return (
     <div className="flex items-center gap-3 mb-4">
-      <div className="relative flex-1 max-w-xs">
-        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search by filename..."
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-8"
-        />
-      </div>
+      <SearchAutocomplete
+        value={search}
+        onChange={onSearchChange}
+        selectedTags={selectedTags}
+        onTagsChange={onTagsChange}
+        filenames={filenames}
+        tags={tags}
+        placeholder="Search by filename or tag..."
+        className="flex-1 max-w-md"
+      />
       <div className="w-40">
         <Select
           options={sortOptions}

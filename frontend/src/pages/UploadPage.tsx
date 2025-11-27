@@ -1,14 +1,16 @@
-import { useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload } from "lucide-react";
+import { useCallback, useState, useEffect, useRef } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload, Sparkles } from "lucide-react";
 import { UploadDropzone } from "../features/photos/components/UploadDropzone";
 import { StatusBadge } from "../components/shared/StatusBadge";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
+import { Switch } from "../components/ui/switch";
 import { EmptyState } from "../components/shared/EmptyState";
-import { photoClient } from "../lib/api/client";
+import { photoClient, aiClient } from "../lib/api/client";
 import { usePhotos } from "../lib/PhotosContext";
+import { useAISettings } from "../hooks/useAISettings";
 import { formatRelativeTime, formatFileSize } from "../lib/utils";
 
 interface UploadingFile {
@@ -20,11 +22,16 @@ interface UploadingFile {
 export function UploadPage() {
   const navigate = useNavigate();
   const { photos, refresh } = usePhotos();
+  const { autoTagOnUpload, setAutoTagOnUpload } = useAISettings();
 
   // Upload state for preview
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Track photos pending AI tagging
+  const pendingAutoTagRef = useRef<Set<string>>(new Set());
+  const taggedPhotosRef = useRef<Set<string>>(new Set());
 
   // Show recently completed photos (processed or failed)
   const completedPhotos = photos.filter((p) =>
@@ -38,6 +45,33 @@ export function UploadPage() {
 
   // Calculate total storage used
   const totalStorageBytes = photos.reduce((acc, p) => acc + p.sizeBytes, 0);
+
+  // Auto-tag photos when they finish processing (if enabled)
+  useEffect(() => {
+    if (!autoTagOnUpload) return;
+
+    // Find photos that are pending auto-tag and have finished processing
+    const photosToTag = photos.filter(
+      (p) =>
+        pendingAutoTagRef.current.has(p.id) &&
+        p.status === "PROCESSED" &&
+        !taggedPhotosRef.current.has(p.id) &&
+        p.tags.length === 0 // Only tag if no tags yet
+    );
+
+    // Trigger AI tagging for each
+    photosToTag.forEach(async (photo) => {
+      taggedPhotosRef.current.add(photo.id);
+      pendingAutoTagRef.current.delete(photo.id);
+      try {
+        console.log(`Auto-tagging photo: ${photo.filename}`);
+        await aiClient.autoTag(photo.id);
+        refresh(); // Refresh to get updated tags
+      } catch (error) {
+        console.error(`Failed to auto-tag ${photo.filename}:`, error);
+      }
+    });
+  }, [photos, autoTagOnUpload, refresh]);
 
   const handleUpload = useCallback(
     async (files: File[], onProgress: (progress: number, speed: number) => void) => {
@@ -77,6 +111,7 @@ export function UploadPage() {
         // Upload in batches of 30 files
         const BATCH_SIZE = 30;
         const totalBatches = Math.ceil(files.length / BATCH_SIZE);
+        const uploadedPhotoIds: string[] = [];
 
         for (let i = 0; i < files.length; i += BATCH_SIZE) {
           const batch = files.slice(i, i + BATCH_SIZE);
@@ -93,7 +128,15 @@ export function UploadPage() {
             onProgress(visualProgress, speed);
           });
 
-          await promise;
+          const response = await promise;
+          // Track uploaded photo IDs for auto-tagging
+          response.items.forEach((photo) => uploadedPhotoIds.push(photo.id));
+        }
+
+        // If auto-tagging is enabled, add uploaded photos to pending queue
+        if (autoTagOnUpload) {
+          uploadedPhotoIds.forEach((id) => pendingAutoTagRef.current.add(id));
+          console.log(`Queued ${uploadedPhotoIds.length} photos for auto-tagging`);
         }
 
         uploadComplete = true;
@@ -119,7 +162,7 @@ export function UploadPage() {
         setIsUploading(false);
       }
     },
-    [refresh]
+    [refresh, autoTagOnUpload]
   );
 
 
@@ -240,22 +283,34 @@ export function UploadPage() {
           <Card className="p-4">
             <h3 className="text-sm font-medium mb-3">Quick Stats</h3>
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-muted/50 rounded-lg text-center">
+              <Link
+                to="/review?status=PROCESSED"
+                className="p-3 bg-muted/50 rounded-lg text-center hover:bg-muted transition-colors"
+              >
                 <p className="text-2xl font-bold text-amber-500">{processedCount}</p>
                 <p className="text-xs text-muted-foreground">Ready</p>
-              </div>
-              <div className="p-3 bg-muted/50 rounded-lg text-center">
+              </Link>
+              <Link
+                to="/review?status=APPROVED"
+                className="p-3 bg-muted/50 rounded-lg text-center hover:bg-muted transition-colors"
+              >
                 <p className="text-2xl font-bold text-emerald-500">{approvedCount}</p>
                 <p className="text-xs text-muted-foreground">Approved</p>
-              </div>
-              <div className="p-3 bg-muted/50 rounded-lg text-center">
+              </Link>
+              <Link
+                to="/review?status=FAILED"
+                className="p-3 bg-muted/50 rounded-lg text-center hover:bg-muted transition-colors"
+              >
                 <p className="text-2xl font-bold text-red-500">{failedCount}</p>
                 <p className="text-xs text-muted-foreground">Failed</p>
-              </div>
-              <div className="p-3 bg-muted/50 rounded-lg text-center">
+              </Link>
+              <Link
+                to="/review?status=ALL"
+                className="p-3 bg-muted/50 rounded-lg text-center hover:bg-muted transition-colors"
+              >
                 <p className="text-2xl font-bold">{photos.length}</p>
                 <p className="text-xs text-muted-foreground">Total</p>
-              </div>
+              </Link>
             </div>
           </Card>
 
@@ -271,6 +326,32 @@ export function UploadPage() {
                 across {photos.length} {photos.length === 1 ? "photo" : "photos"}
               </p>
             </div>
+          </Card>
+
+          {/* AI Auto-Tagging Toggle */}
+          <Card className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  AI Auto-Tagging
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Automatically tag photos on upload using AI
+                </p>
+              </div>
+              <Switch
+                checked={autoTagOnUpload}
+                onCheckedChange={setAutoTagOnUpload}
+              />
+            </div>
+            {autoTagOnUpload && (
+              <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded-md">
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Note: AI tagging uses OpenAI API and incurs additional costs per image analyzed.
+                </p>
+              </div>
+            )}
           </Card>
         </div>
       </div>

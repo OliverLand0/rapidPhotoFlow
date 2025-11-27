@@ -8,7 +8,15 @@ import {
   XCircle,
   RefreshCw,
   Pause,
-  Play,
+  Search,
+  Tag,
+  Keyboard,
+  Sparkles,
+  Copy,
+  BookmarkCheck,
+  Moon,
+  Zap,
+  History,
 } from "lucide-react";
 
 interface AboutDialogProps {
@@ -20,7 +28,7 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogHeader onClose={onClose}>About RapidPhotoFlow</DialogHeader>
-      <DialogContent className="space-y-6">
+      <DialogContent className="space-y-6 max-h-[70vh] overflow-y-auto">
         {/* Project Overview */}
         <section>
           <h3 className="font-semibold text-base mb-2">Project Overview</h3>
@@ -32,17 +40,6 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
           </p>
         </section>
 
-        {/* Why This Exists */}
-        <section>
-          <h3 className="font-semibold text-base mb-2">Why This Exists</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Over the next 900 days, more will change in engineering than the
-            last 20 years combined. AI is rewriting the rules. The developers
-            who thrive will be full-stack creators, architectural thinkers,
-            AI-accelerated builders, and creative problem solvers.
-          </p>
-        </section>
-
         {/* Features */}
         <section>
           <h3 className="font-semibold text-base mb-3">Features</h3>
@@ -50,22 +47,42 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
             <FeatureItem
               icon={Upload}
               title="Multi-Photo Upload"
-              description="Upload multiple photos concurrently with drag-and-drop support and automatic image optimization"
+              description="Drag-and-drop upload with automatic image compression and batch processing (30 files at a time)"
             />
             <FeatureItem
               icon={Cpu}
-              title="Async Processing"
-              description="Simulated async processing pipeline with real-time status updates and event logging"
+              title="Async Processing Pipeline"
+              description="Simulated async processing with real-time status updates and configurable processing speed"
+            />
+            <FeatureItem
+              icon={Pause}
+              title="Processing Control"
+              description="Pause and resume the processing pipeline on demand"
             />
             <FeatureItem
               icon={Grid3X3}
               title="Photo Gallery"
-              description="Visual gallery with filtering, sorting, and bulk selection capabilities"
+              description="Visual gallery with status-based tabs, pagination, and thumbnail previews"
+            />
+            <FeatureItem
+              icon={Search}
+              title="Search & Filter"
+              description="Search by filename or tag with autocomplete suggestions and multi-tag filtering"
+            />
+            <FeatureItem
+              icon={Tag}
+              title="Photo Tagging"
+              description="Add, edit, and remove tags on individual photos for easy organization"
+            />
+            <FeatureItem
+              icon={Sparkles}
+              title="AI Auto-Tagging"
+              description="Automatic tag generation using OpenAI GPT-4o-mini vision API (optional, disabled by default)"
             />
             <FeatureItem
               icon={CheckCircle}
               title="Review Workflow"
-              description="Approve or reject processed photos with quick actions and keyboard shortcuts"
+              description="Approve or reject processed photos with quick actions and visual feedback"
             />
             <FeatureItem
               icon={RefreshCw}
@@ -73,9 +90,39 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
               description="Retry failed photos for reprocessing with a single click"
             />
             <FeatureItem
-              icon={Pause}
-              title="Processing Control"
-              description="Pause and resume the processing pipeline on demand"
+              icon={XCircle}
+              title="Bulk Actions"
+              description="Select multiple photos and perform bulk approve, reject, or retry operations"
+            />
+            <FeatureItem
+              icon={Keyboard}
+              title="Keyboard Shortcuts"
+              description="Full keyboard navigation: J/K to navigate, A to approve, R to reject, Space to select"
+            />
+            <FeatureItem
+              icon={BookmarkCheck}
+              title="Saved Views"
+              description="Save custom filter combinations as views for quick access to common workflows"
+            />
+            <FeatureItem
+              icon={Copy}
+              title="Duplicate Detection"
+              description="Automatically detect and remove duplicate photos based on file hash"
+            />
+            <FeatureItem
+              icon={History}
+              title="Event Log"
+              description="Real-time activity feed showing all photo events with clickable navigation"
+            />
+            <FeatureItem
+              icon={Zap}
+              title="Status Dashboard"
+              description="Live status counts with clickable navigation to filtered gallery views"
+            />
+            <FeatureItem
+              icon={Moon}
+              title="Dark Mode"
+              description="Full dark mode support with system preference detection"
             />
           </div>
         </section>
@@ -84,12 +131,13 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
         <section>
           <h3 className="font-semibold text-base mb-2">Tech Stack</h3>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">React</Badge>
+            <Badge variant="secondary">React 19</Badge>
             <Badge variant="secondary">TypeScript</Badge>
             <Badge variant="secondary">Vite</Badge>
             <Badge variant="secondary">Tailwind CSS</Badge>
             <Badge variant="secondary">Spring Boot</Badge>
-            <Badge variant="secondary">Java</Badge>
+            <Badge variant="secondary">Java 21</Badge>
+            <Badge variant="secondary">OpenAI API</Badge>
           </div>
         </section>
 

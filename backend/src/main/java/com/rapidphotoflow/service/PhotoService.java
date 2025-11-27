@@ -153,4 +153,43 @@ public class PhotoService {
 
         return duplicates;
     }
+
+    public Photo addTag(UUID photoId, String tag) {
+        Photo photo = photoRepository.findById(photoId)
+                .orElseThrow(() -> new IllegalArgumentException("Photo not found: " + photoId));
+
+        boolean added = photo.addTag(tag);
+        if (added) {
+            photoRepository.save(photo);
+            String normalizedTag = tag.toLowerCase().trim();
+            eventService.logEvent(photoId, EventType.TAG_ADDED,
+                    "Tag '" + normalizedTag + "' added to " + photo.getFilename());
+            log.info("Tag '{}' added to photo: {} ({})", normalizedTag, photo.getFilename(), photoId);
+        }
+
+        return photo;
+    }
+
+    public Photo removeTag(UUID photoId, String tag) {
+        Photo photo = photoRepository.findById(photoId)
+                .orElseThrow(() -> new IllegalArgumentException("Photo not found: " + photoId));
+
+        boolean removed = photo.removeTag(tag);
+        if (removed) {
+            photoRepository.save(photo);
+            String normalizedTag = tag.toLowerCase().trim();
+            eventService.logEvent(photoId, EventType.TAG_REMOVED,
+                    "Tag '" + normalizedTag + "' removed from " + photo.getFilename());
+            log.info("Tag '{}' removed from photo: {} ({})", normalizedTag, photo.getFilename(), photoId);
+        }
+
+        return photo;
+    }
+
+    public List<Photo> getPhotosByTag(String tag) {
+        String normalizedTag = tag.toLowerCase().trim();
+        return photoRepository.findAll().stream()
+                .filter(photo -> photo.getTags() != null && photo.getTags().contains(normalizedTag))
+                .toList();
+    }
 }

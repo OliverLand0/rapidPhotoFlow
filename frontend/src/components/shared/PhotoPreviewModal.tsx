@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { X, Check, XCircle, RefreshCw, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Check, XCircle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { Button } from "../ui/button";
 import { StatusBadge } from "./StatusBadge";
+import { TagEditor } from "./TagEditor";
 import { useToast } from "../ui/toast";
-import { photoClient } from "../../lib/api/client";
+import { photoClient, aiClient } from "../../lib/api/client";
 import { formatFileSize, formatRelativeTime } from "../../lib/utils";
 import type { Photo } from "../../lib/api/types";
 
@@ -26,6 +27,7 @@ export function PhotoPreviewModal({
 }: PhotoPreviewModalProps) {
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isAutoTagging, setIsAutoTagging] = useState(false);
   const { toast } = useToast();
 
   const canApprove = photo.status === "PROCESSED" || photo.status === "REJECTED";
@@ -91,6 +93,40 @@ export function PhotoPreviewModal({
       });
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleAutoTag = async () => {
+    setIsAutoTagging(true);
+    try {
+      const response = await aiClient.autoTag(photo.id);
+      if (response.success && response.tags.length > 0) {
+        // Refresh photo data to get updated tags
+        const updatedPhoto = await photoClient.getPhotoById(photo.id);
+        onPhotoUpdate?.(updatedPhoto);
+        toast({
+          type: "success",
+          title: `Added ${response.tags.length} tag${response.tags.length !== 1 ? "s" : ""}`,
+          description: response.tags.join(", "),
+        });
+      } else if (response.success && response.tags.length === 0) {
+        toast({
+          type: "info",
+          title: "No tags generated",
+          description: "The AI couldn't identify any tags for this image",
+        });
+      } else {
+        throw new Error(response.error || "Failed to generate tags");
+      }
+    } catch (error) {
+      console.error("Auto-tag failed:", error);
+      toast({
+        type: "error",
+        title: "Auto-tag failed",
+        description: error instanceof Error ? error.message : "Make sure the AI service is running",
+      });
+    } finally {
+      setIsAutoTagging(false);
     }
   };
 
@@ -196,6 +232,26 @@ export function PhotoPreviewModal({
                   <p className="text-sm text-destructive">{photo.failureReason}</p>
                 </div>
               )}
+              <div className="pt-2 border-t border-border">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Tags</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={handleAutoTag}
+                    disabled={isAutoTagging}
+                  >
+                    {isAutoTagging ? (
+                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3 mr-1" />
+                    )}
+                    Auto-tag
+                  </Button>
+                </div>
+                <TagEditor photo={photo} onPhotoUpdate={onPhotoUpdate} />
+              </div>
             </div>
 
             {/* Actions */}

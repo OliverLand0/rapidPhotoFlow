@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { StatusSummaryBar } from "./StatusSummaryBar";
 import type { Photo } from "../../lib/api/types";
 
@@ -24,6 +25,10 @@ describe("StatusSummaryBar", () => {
     updatedAt: "2024-01-15T10:00:00Z",
   });
 
+  const renderWithRouter = (ui: React.ReactElement) => {
+    return render(<MemoryRouter>{ui}</MemoryRouter>);
+  };
+
   it("should display all status counts", () => {
     const photos: Photo[] = [
       createPhoto("1", "PENDING"),
@@ -35,7 +40,7 @@ describe("StatusSummaryBar", () => {
       createPhoto("7", "REJECTED"),
     ];
 
-    render(
+    renderWithRouter(
       <StatusSummaryBar photos={photos} lastUpdated={new Date("2024-01-15T11:50:00Z")} />
     );
 
@@ -54,7 +59,7 @@ describe("StatusSummaryBar", () => {
       createPhoto("3", "APPROVED"),
     ];
 
-    render(
+    renderWithRouter(
       <StatusSummaryBar photos={photos} lastUpdated={new Date()} />
     );
 
@@ -63,7 +68,7 @@ describe("StatusSummaryBar", () => {
   });
 
   it("should display zero counts when no photos", () => {
-    render(
+    renderWithRouter(
       <StatusSummaryBar photos={[]} lastUpdated={new Date()} />
     );
 
@@ -71,7 +76,7 @@ describe("StatusSummaryBar", () => {
   });
 
   it("should display last updated time", () => {
-    render(
+    renderWithRouter(
       <StatusSummaryBar
         photos={[]}
         lastUpdated={new Date("2024-01-15T11:55:00Z")}
@@ -79,5 +84,31 @@ describe("StatusSummaryBar", () => {
     );
 
     expect(screen.getByText(/Updated 5m ago/)).toBeInTheDocument();
+  });
+
+  it("should render links for all linkable statuses", () => {
+    renderWithRouter(
+      <StatusSummaryBar photos={[]} lastUpdated={new Date()} />
+    );
+
+    // Check that all review-eligible statuses have links (even with 0 count)
+    const readyLink = screen.getByRole("link", { name: /Ready:/ });
+    expect(readyLink).toHaveAttribute("href", "/review?status=PROCESSED");
+
+    const failedLink = screen.getByRole("link", { name: /Failed:/ });
+    expect(failedLink).toHaveAttribute("href", "/review?status=FAILED");
+
+    const approvedLink = screen.getByRole("link", { name: /Approved:/ });
+    expect(approvedLink).toHaveAttribute("href", "/review?status=APPROVED");
+
+    const rejectedLink = screen.getByRole("link", { name: /Rejected:/ });
+    expect(rejectedLink).toHaveAttribute("href", "/review?status=REJECTED");
+
+    const totalLink = screen.getByRole("link", { name: /Total:/ });
+    expect(totalLink).toHaveAttribute("href", "/review");
+
+    // Pending and Processing should NOT be links
+    expect(screen.queryByRole("link", { name: /Pending:/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Processing:/ })).not.toBeInTheDocument();
   });
 });

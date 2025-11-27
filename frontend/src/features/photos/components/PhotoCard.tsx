@@ -5,6 +5,7 @@ import { Button } from "../../../components/ui/button";
 import { Checkbox } from "../../../components/ui/checkbox";
 import { useToast } from "../../../components/ui/toast";
 import { StatusBadge } from "../../../components/shared/StatusBadge";
+import { TagEditor } from "../../../components/shared/TagEditor";
 import { photoClient } from "../../../lib/api/client";
 import { cn } from "../../../lib/utils";
 import type { Photo } from "../../../lib/api/types";
@@ -17,6 +18,7 @@ interface PhotoCardProps {
   selected?: boolean;
   onSelectionChange?: (id: string) => void;
   highlighted?: boolean;
+  focused?: boolean;
 }
 
 const actionMessages: Record<string, { success: string; error: string }> = {
@@ -33,6 +35,7 @@ export function PhotoCard({
   selected = false,
   onSelectionChange,
   highlighted = false,
+  focused = false,
 }: PhotoCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -70,9 +73,11 @@ export function PhotoCard({
     <Card
       className={cn(
         "group relative overflow-hidden transition-all",
-        highlighted && "ring-2 ring-primary ring-offset-2",
+        highlighted && "ring-2 ring-primary ring-offset-2 animate-highlight-pulse",
+        focused && !highlighted && "ring-2 ring-blue-500 ring-offset-2",
         onClick && "cursor-pointer"
       )}
+      data-photo-id={photo.id}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleCardClick}
@@ -163,6 +168,11 @@ export function PhotoCard({
           <p className="text-xs text-destructive mt-1 truncate">
             {photo.failureReason}
           </p>
+        )}
+        {photo.tags && photo.tags.length > 0 && (
+          <div className="mt-2">
+            <TagEditor photo={photo} compact />
+          </div>
         )}
       </div>
     </Card>

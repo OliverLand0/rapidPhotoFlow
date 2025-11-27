@@ -4,8 +4,8 @@ import com.rapidphotoflow.domain.EventType;
 import com.rapidphotoflow.domain.Photo;
 import com.rapidphotoflow.domain.PhotoStatus;
 import com.rapidphotoflow.repository.InMemoryPhotoRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -15,14 +15,27 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class ProcessorService {
 
     private final InMemoryPhotoRepository photoRepository;
     private final EventService eventService;
+    private final AiTaggingService aiTaggingService;
+    private final boolean autoTagOnUpload;
 
     private final ExecutorService executor = Executors.newFixedThreadPool(20);
+
+    public ProcessorService(
+            InMemoryPhotoRepository photoRepository,
+            EventService eventService,
+            AiTaggingService aiTaggingService,
+            @Value("${ai.service.auto-tag-on-upload:false}") boolean autoTagOnUpload) {
+        this.photoRepository = photoRepository;
+        this.eventService = eventService;
+        this.aiTaggingService = aiTaggingService;
+        this.autoTagOnUpload = autoTagOnUpload;
+        log.info("Auto-tagging on upload: {}", autoTagOnUpload ? "ENABLED" : "DISABLED");
+    }
 
     // Supported image MIME types
     private static final Set<String> SUPPORTED_MIME_TYPES = Set.of(
@@ -68,6 +81,9 @@ public class ProcessorService {
                 eventService.logEvent(photo.getId(), EventType.PROCESSING_COMPLETED,
                         "Processing completed: " + photo.getFilename());
                 log.info("Processing completed: {} ({})", photo.getFilename(), photo.getId());
+
+                // Trigger auto-tagging asynchronously (non-blocking)
+                triggerAutoTagging(photo);
             } else {
                 photo.markFailed(validationError);
                 photoRepository.save(photo);
@@ -81,6 +97,35 @@ public class ProcessorService {
             photoRepository.save(photo);
             log.error("Error processing photo: {}", photo.getId(), e);
         }
+    }
+
+    /**
+     * Trigger auto-tagging for a photo via the AI service.
+     * This runs asynchronously and does not block photo processing.
+     * Only runs if auto-tagging is enabled in configuration.
+     */
+    private void triggerAutoTagging(Photo photo) {
+        if (!autoTagOnUpload) {
+            log.debug("Auto-tagging disabled, skipping for photo {}", photo.getId());
+            return;
+        }
+
+        executor.submit(() -> {
+            try {
+                if (!aiTaggingService.isAvailable()) {
+                    log.debug("AI service not available, skipping auto-tagging for photo {}", photo.getId());
+                    return;
+                }
+
+                List<String> tags = aiTaggingService.autoTagPhoto(photo.getId());
+                if (!tags.isEmpty()) {
+                    eventService.logEvent(photo.getId(), EventType.AUTO_TAGGED,
+                            "Auto-tagged with: " + String.join(", ", tags));
+                }
+            } catch (Exception e) {
+                log.error("Error during auto-tagging for photo {}: {}", photo.getId(), e.getMessage());
+            }
+        });
     }
 
     /**
