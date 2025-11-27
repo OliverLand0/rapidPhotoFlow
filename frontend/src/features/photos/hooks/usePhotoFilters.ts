@@ -1,0 +1,97 @@
+import { useState, useMemo, useCallback, useEffect } from "react";
+import type { Photo, PhotoStatus } from "../../../lib/api/types";
+
+export type SortOption = "newest" | "oldest" | "status";
+export type StatusFilter = PhotoStatus | "ALL";
+
+interface UsePhotoFiltersOptions {
+  initialSort?: SortOption;
+  pageSize?: number;
+}
+
+const statusOrder: Record<PhotoStatus, number> = {
+  PENDING: 0,
+  PROCESSING: 1,
+  PROCESSED: 2,
+  FAILED: 3,
+  APPROVED: 4,
+  REJECTED: 5,
+};
+
+export function usePhotoFilters(
+  photos: Photo[],
+  statusFilter: StatusFilter,
+  options: UsePhotoFiltersOptions = {}
+) {
+  const { initialSort = "newest", pageSize = 12 } = options;
+
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>(initialSort);
+  const [currentPage, setCurrentPage] = useState(0);
+
+  const filteredAndSortedPhotos = useMemo(() => {
+    let result = [...photos];
+
+    // Apply status filter
+    if (statusFilter !== "ALL") {
+      result = result.filter((p) => p.status === statusFilter);
+    }
+
+    // Apply search filter
+    if (search.trim()) {
+      const searchLower = search.toLowerCase();
+      result = result.filter((p) =>
+        p.filename.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Apply sorting
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+        case "oldest":
+          return new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime();
+        case "status":
+          return statusOrder[a.status] - statusOrder[b.status];
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  }, [photos, statusFilter, search, sortBy]);
+
+  // Paginate the filtered results
+  const paginatedPhotos = useMemo(() => {
+    const start = currentPage * pageSize;
+    return filteredAndSortedPhotos.slice(start, start + pageSize);
+  }, [filteredAndSortedPhotos, currentPage, pageSize]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [search, sortBy, statusFilter]);
+
+  const clearFilters = useCallback(() => {
+    setSearch("");
+    setSortBy("newest");
+    setCurrentPage(0);
+  }, []);
+
+  const hasActiveFilters = search.trim() !== "" || sortBy !== "newest";
+
+  return {
+    search,
+    setSearch,
+    sortBy,
+    setSortBy,
+    filteredPhotos: paginatedPhotos,
+    totalFilteredCount: filteredAndSortedPhotos.length,
+    clearFilters,
+    hasActiveFilters,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+  };
+}

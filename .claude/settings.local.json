@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(brew upgrade:*)",
+      "Bash(mvn:*)",
+      "Bash(curl:*)",
+      "Bash(npm create:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(nvm list:*)",
+      "Bash(nvm install:*)",
+      "Bash(nvm use:*)",
+      "Bash(source ~/.nvm/nvm.sh)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill -9)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npm run build:*)",
+      "Bash(kill:*)",
+      "Bash(npm run test:run:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

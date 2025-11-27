@@ -1,0 +1,24 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: rapidphotoflow
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 500MB
+
+# OpenAPI configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+
+# Logging
+logging:
+  level:
+    com.rapidphotoflow: DEBUG
+    root: INFO

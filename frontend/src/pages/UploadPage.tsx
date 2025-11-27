@@ -1,0 +1,370 @@
+import { useCallback, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload } from "lucide-react";
+import { UploadDropzone } from "../features/photos/components/UploadDropzone";
+import { StatusBadge } from "../components/shared/StatusBadge";
+import { Button } from "../components/ui/button";
+import { Card } from "../components/ui/card";
+import { Progress } from "../components/ui/progress";
+import { EmptyState } from "../components/shared/EmptyState";
+import { photoClient } from "../lib/api/client";
+import { usePhotos } from "../lib/PhotosContext";
+import { formatRelativeTime, formatFileSize } from "../lib/utils";
+
+interface UploadingFile {
+  name: string;
+  size: number;
+  preview?: string;
+}
+
+export function UploadPage() {
+  const navigate = useNavigate();
+  const { photos, refresh } = usePhotos();
+
+  // Upload state for preview
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Show recently completed photos (processed or failed)
+  const completedPhotos = photos.filter((p) =>
+    ["PROCESSED", "FAILED", "APPROVED", "REJECTED"].includes(p.status)
+  );
+
+  // Count stats
+  const processedCount = photos.filter(p => p.status === "PROCESSED").length;
+  const failedCount = photos.filter(p => p.status === "FAILED").length;
+  const approvedCount = photos.filter(p => p.status === "APPROVED").length;
+
+  // Calculate total storage used
+  const totalStorageBytes = photos.reduce((acc, p) => acc + p.sizeBytes, 0);
+
+  const handleUpload = useCallback(
+    async (files: File[], onProgress: (progress: number, speed: number) => void) => {
+      // Create previews for the files being uploaded
+      const uploading: UploadingFile[] = files.map((file) => ({
+        name: file.name,
+        size: file.size,
+        preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+      }));
+
+      setUploadingFiles((prev) => [...prev, ...uploading]);
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      // Track the visual progress separately from actual upload
+      let visualProgress = 0;
+      let actualProgress = 0;
+      let currentSpeed = 0;
+      let uploadComplete = false;
+
+      // Smoothly animate visual progress to catch up with actual progress
+      const progressInterval = setInterval(() => {
+        if (visualProgress < actualProgress) {
+          visualProgress = Math.min(visualProgress + 2, actualProgress);
+          setUploadProgress(visualProgress);
+        }
+        // Always pass the current speed when we have progress
+        if (!uploadComplete) {
+          onProgress(visualProgress, currentSpeed);
+        }
+        if (uploadComplete && visualProgress >= 100) {
+          clearInterval(progressInterval);
+        }
+      }, 50);
+
+      try {
+        // Upload in batches of 30 files
+        const BATCH_SIZE = 30;
+        const totalBatches = Math.ceil(files.length / BATCH_SIZE);
+
+        for (let i = 0; i < files.length; i += BATCH_SIZE) {
+          const batch = files.slice(i, i + BATCH_SIZE);
+          const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+
+          const { promise } = photoClient.uploadPhotos(batch, (batchProgress, speed) => {
+            // Calculate overall progress across all batches
+            const completedBatches = batchNum - 1;
+            actualProgress = Math.round(
+              ((completedBatches * 100 + batchProgress) / totalBatches)
+            );
+            currentSpeed = speed;
+            // Also update speed immediately for responsiveness
+            onProgress(visualProgress, speed);
+          });
+
+          await promise;
+        }
+
+        uploadComplete = true;
+        actualProgress = 100;
+
+        // Wait for visual progress to reach 100
+        await new Promise<void>((resolve) => {
+          const checkComplete = setInterval(() => {
+            if (visualProgress >= 100) {
+              clearInterval(checkComplete);
+              resolve();
+            }
+          }, 50);
+        });
+
+        // Refresh from server to get the new photos
+        await refresh();
+        setIsUploading(false);
+        setUploadProgress(100);
+      } catch (error) {
+        clearInterval(progressInterval);
+        console.error("Upload failed:", error);
+        setIsUploading(false);
+      }
+    },
+    [refresh]
+  );
+
+
+  return (
+    <div className="max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold mb-1">Upload Photos</h1>
+          <p className="text-muted-foreground">
+            Drop photos to start the processing workflow
+          </p>
+        </div>
+        <Button onClick={() => navigate("/review")} variant="outline">
+          Go to Review
+          <ArrowRight className="h-4 w-4 ml-2" />
+        </Button>
+      </div>
+
+      {/* Main Upload Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+        {/* Upload Area - Left side */}
+        <div className="lg:col-span-3">
+          {/* Upload Dropzone or Upload Preview */}
+          {uploadingFiles.length > 0 ? (
+            <Card className="p-6 h-full min-h-[340px]">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  {isUploading ? (
+                    <Upload className="h-6 w-6 text-primary animate-pulse" />
+                  ) : (
+                    <CheckCircle className="h-6 w-6 text-green-500" />
+                  )}
+                  <div>
+                    <h3 className="font-semibold">
+                      {isUploading
+                        ? `Uploading ${uploadingFiles.length} photos...`
+                        : `${uploadingFiles.length} photos uploaded`}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {isUploading
+                        ? "Please wait while your photos are being uploaded"
+                        : "All photos have been uploaded and are being processed"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <Progress value={uploadProgress} className="mb-4 h-2" />
+              <p className="text-sm text-muted-foreground text-center mb-4">
+                {uploadProgress}% complete
+              </p>
+
+              {/* Photo Grid Preview */}
+              <div className="grid grid-cols-5 gap-2 max-h-[200px] overflow-y-auto">
+                {uploadingFiles.map((file, index) => (
+                  <div
+                    key={index}
+                    className="w-full pb-[100%] relative rounded-lg overflow-hidden bg-muted group"
+                  >
+                    <div className="absolute inset-0">
+                      {file.preview ? (
+                        <img
+                          src={file.preview}
+                          alt={file.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Image className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                      {/* Overlay with file info on hover */}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2">
+                        <p className="text-white text-xs text-center truncate w-full">
+                          {file.name}
+                        </p>
+                        <p className="text-white/70 text-xs">
+                          {formatFileSize(file.size)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Upload More Button */}
+              {!isUploading && (
+                <div className="mt-4 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      uploadingFiles.forEach((f) => {
+                        if (f.preview) URL.revokeObjectURL(f.preview);
+                      });
+                      setUploadingFiles([]);
+                      setUploadProgress(0);
+                    }}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload More Photos
+                  </Button>
+                </div>
+              )}
+            </Card>
+          ) : (
+            <Card className="h-full min-h-[340px] border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-colors">
+              <UploadDropzone onUpload={handleUpload} />
+            </Card>
+          )}
+        </div>
+
+        {/* Quick Stats & Legend - Right side */}
+        <div className="lg:col-span-2 space-y-4">
+          <Card className="p-4">
+            <h3 className="text-sm font-medium mb-3">Quick Stats</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-muted/50 rounded-lg text-center">
+                <p className="text-2xl font-bold text-amber-500">{processedCount}</p>
+                <p className="text-xs text-muted-foreground">Ready</p>
+              </div>
+              <div className="p-3 bg-muted/50 rounded-lg text-center">
+                <p className="text-2xl font-bold text-emerald-500">{approvedCount}</p>
+                <p className="text-xs text-muted-foreground">Approved</p>
+              </div>
+              <div className="p-3 bg-muted/50 rounded-lg text-center">
+                <p className="text-2xl font-bold text-red-500">{failedCount}</p>
+                <p className="text-xs text-muted-foreground">Failed</p>
+              </div>
+              <div className="p-3 bg-muted/50 rounded-lg text-center">
+                <p className="text-2xl font-bold">{photos.length}</p>
+                <p className="text-xs text-muted-foreground">Total</p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Storage Tracker */}
+          <Card className="p-4">
+            <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+              <HardDrive className="h-4 w-4" />
+              Storage Used
+            </h3>
+            <div className="text-center py-4">
+              <p className="text-3xl font-bold">{formatFileSize(totalStorageBytes)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                across {photos.length} {photos.length === 1 ? "photo" : "photos"}
+              </p>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* Recently Completed Section */}
+      <Card className="overflow-hidden">
+        <div className="px-4 py-3 border-b flex items-center justify-between bg-muted/30">
+          <h2 className="text-sm font-semibold flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            Recently Completed
+            <span className="text-muted-foreground font-normal">({completedPhotos.length})</span>
+          </h2>
+          {completedPhotos.length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => navigate("/review")}
+              className="text-xs h-7"
+            >
+              View All
+              <ArrowRight className="h-3 w-3 ml-1" />
+            </Button>
+          )}
+        </div>
+
+        <div className="max-h-[300px] overflow-y-auto">
+          {completedPhotos.length === 0 ? (
+            <div className="py-12 flex items-center justify-center">
+              <EmptyState
+                icon={Inbox}
+                title="No completed items"
+                description="Processed photos will appear here"
+                size="sm"
+              />
+            </div>
+          ) : (
+            <div className="divide-y">
+              {completedPhotos.slice(0, 20).map((photo) => (
+                <div
+                  key={photo.id}
+                  className="px-4 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">
+                      {photo.filename}
+                    </p>
+                    {photo.failureReason ? (
+                      <p className="text-xs text-destructive truncate">
+                        {photo.failureReason}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        {formatRelativeTime(photo.updatedAt)}
+                      </p>
+                    )}
+                  </div>
+                  <StatusBadge status={photo.status} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Status Legend */}
+      <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+        <h3 className="text-sm font-medium mb-3">Status Legend</h3>
+        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+            <span className="text-muted-foreground">Pending</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
+            <span className="text-muted-foreground">Processing</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+            <span className="text-muted-foreground">Ready</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+            <span className="text-muted-foreground">Failed</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span className="text-muted-foreground">Approved</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+            <span className="text-muted-foreground">Rejected</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
