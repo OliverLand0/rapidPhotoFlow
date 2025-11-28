@@ -18,7 +18,8 @@
       "Bash(npm run build:*)",
       "Bash(kill:*)",
       "Bash(npm run test:run:*)",
-      "Bash(./mvnw spring-boot:run:*)"
+      "Bash(./mvnw spring-boot:run:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

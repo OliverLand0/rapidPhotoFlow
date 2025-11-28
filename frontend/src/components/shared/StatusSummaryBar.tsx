@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Circle, Loader2, Check, AlertTriangle, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Check, AlertTriangle, CheckCircle, XCircle, Clock, Upload } from "lucide-react";
 import type { Photo, PhotoStatus } from "../../lib/api/types";
 import { formatRelativeTime } from "../../lib/utils";
 
@@ -16,6 +16,7 @@ interface StatusCounts {
 interface StatusSummaryBarProps {
   photos: Photo[];
   lastUpdated: Date;
+  uploadingCount?: number;
 }
 
 function computeCounts(photos: Photo[]): StatusCounts {
@@ -39,70 +40,81 @@ function computeCounts(photos: Photo[]): StatusCounts {
   return counts;
 }
 
-const statusItems: {
+interface StatusItemConfig {
   key: keyof Omit<StatusCounts, "total">;
   label: string;
-  icon: React.ReactNode;
   colorClass: string;
-  filterParam: string | null; // null means not linkable (pending/processing)
-}[] = [
-  {
-    key: "pending",
-    label: "Pending",
-    icon: <Circle className="h-3 w-3 fill-slate-400 text-slate-400" />,
-    colorClass: "text-slate-500",
-    filterParam: null,
-  },
-  {
-    key: "processing",
-    label: "Processing",
-    icon: <Loader2 className="h-3 w-3 animate-spin text-sky-500" />,
-    colorClass: "text-sky-600",
-    filterParam: null,
-  },
+  filterParam: string | null;
+}
+
+const statusItemConfigs: StatusItemConfig[] = [
   {
     key: "processed",
     label: "Ready",
-    icon: <Check className="h-3 w-3 text-amber-500" />,
     colorClass: "text-amber-600",
     filterParam: "PROCESSED",
   },
   {
     key: "failed",
     label: "Failed",
-    icon: <AlertTriangle className="h-3 w-3 text-red-500" />,
     colorClass: "text-red-600",
     filterParam: "FAILED",
   },
   {
     key: "approved",
     label: "Approved",
-    icon: <CheckCircle className="h-3 w-3 text-emerald-500" />,
     colorClass: "text-emerald-600",
     filterParam: "APPROVED",
   },
   {
     key: "rejected",
     label: "Rejected",
-    icon: <XCircle className="h-3 w-3 text-orange-500" />,
     colorClass: "text-orange-600",
     filterParam: "REJECTED",
   },
 ];
 
-export function StatusSummaryBar({ photos, lastUpdated }: StatusSummaryBarProps) {
+// Dynamic icon based on status
+function getStatusIcon(key: string): React.ReactNode {
+  switch (key) {
+    case "processed":
+      return <Check className="h-3 w-3 text-amber-500" />;
+    case "failed":
+      return <AlertTriangle className="h-3 w-3 text-red-500" />;
+    case "approved":
+      return <CheckCircle className="h-3 w-3 text-emerald-500" />;
+    case "rejected":
+      return <XCircle className="h-3 w-3 text-orange-500" />;
+    default:
+      return null;
+  }
+}
+
+export function StatusSummaryBar({ photos, lastUpdated, uploadingCount = 0 }: StatusSummaryBarProps) {
   const counts = computeCounts(photos);
 
   return (
     <div className="border-b bg-muted/30">
       <div className="container mx-auto px-4 h-10 flex items-center justify-between">
         <div className="flex items-center gap-4 text-sm">
-          {statusItems.map((item) => {
+          {/* Uploading indicator - show only when actively uploading */}
+          {uploadingCount > 0 && (
+            <div className="flex items-center gap-1.5 pr-3 border-r">
+              <Upload className="h-3 w-3 text-primary animate-bounce" />
+              <span className="text-primary font-medium">
+                Uploading: <span className="font-bold">{uploadingCount}</span>
+              </span>
+            </div>
+          )}
+          {statusItemConfigs.map((item) => {
+            const count = counts[item.key];
+            const icon = getStatusIcon(item.key);
+
             const content = (
               <>
-                {item.icon}
+                {icon}
                 <span className={item.colorClass}>
-                  {item.label}: <span className="font-medium">{counts[item.key]}</span>
+                  {item.label}: <span className="font-medium">{count}</span>
                 </span>
               </>
             );

@@ -24,9 +24,9 @@ const filterOptions: { value: EventFilter; label: string }[] = [
 
 const filterGroups: Record<EventFilter, EventType[] | null> = {
   all: null,
-  errors: ["PROCESSING_FAILED", "REJECTED"],
+  errors: ["PROCESSING_FAILED"],
   success: ["PROCESSING_COMPLETED", "APPROVED"],
-  activity: ["PHOTO_CREATED", "PROCESSING_STARTED", "RETRY_REQUESTED"],
+  activity: ["PHOTO_CREATED", "PROCESSING_STARTED", "RETRY_REQUESTED", "REJECTED", "DELETED"],
 };
 
 const eventTypeColors: Record<string, string> = {
@@ -35,7 +35,8 @@ const eventTypeColors: Record<string, string> = {
   PROCESSING_COMPLETED: "bg-green-500",
   PROCESSING_FAILED: "bg-red-500",
   APPROVED: "bg-green-500",
-  REJECTED: "bg-red-400",
+  REJECTED: "bg-orange-500",
+  DELETED: "bg-slate-500",
   RETRY_REQUESTED: "bg-amber-500",
 };
 

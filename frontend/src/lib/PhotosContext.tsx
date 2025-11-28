@@ -9,6 +9,9 @@ interface PhotosContextValue {
   lastUpdated: Date;
   refresh: () => Promise<void>;
   setPhotos: React.Dispatch<React.SetStateAction<Photo[]>>;
+  // Upload tracking
+  uploadingCount: number;
+  setUploadingCount: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const PhotosContext = createContext<PhotosContextValue | null>(null);
@@ -20,6 +23,7 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [uploadingCount, setUploadingCount] = useState(0);
 
   const fetchPhotos = useCallback(async () => {
     try {
@@ -54,6 +58,8 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
         lastUpdated,
         refresh,
         setPhotos,
+        uploadingCount,
+        setUploadingCount,
       }}
     >
       {children}

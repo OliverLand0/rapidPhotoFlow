@@ -117,37 +117,85 @@ public class PhotoService {
                 .orElseThrow(() -> new IllegalArgumentException("Photo not found: " + photoId));
 
         String filename = photo.getFilename();
+        eventService.logEvent(photoId, EventType.DELETED,
+                "Photo deleted: " + filename);
         photoRepository.deleteById(photoId);
         log.info("Photo deleted: {} ({})", filename, photoId);
     }
 
+    /**
+     * Returns a priority score for a photo status. Higher score = higher priority to keep.
+     * Priority order (highest to lowest):
+     * - APPROVED: User has approved this photo, always keep
+     * - PROCESSED: Ready for review
+     * - PROCESSING: Currently being processed
+     * - PENDING: Waiting to be processed
+     * - FAILED: Processing failed
+     * - REJECTED: User rejected this photo, lowest priority
+     */
+    private int getStatusPriority(PhotoStatus status) {
+        return switch (status) {
+            case APPROVED -> 6;
+            case PROCESSED -> 5;
+            case PROCESSING -> 4;
+            case PENDING -> 3;
+            case FAILED -> 2;
+            case REJECTED -> 1;
+        };
+    }
+
     public List<Photo> deleteDuplicates() {
         List<Photo> allPhotos = photoRepository.findAll();
-        Map<String, Photo> seenHashes = new HashMap<>();
+        Map<String, Photo> bestByHash = new HashMap<>();
         List<Photo> duplicates = new ArrayList<>();
 
-        // Sort by uploadedAt so we keep the oldest copy
-        allPhotos.sort((a, b) -> a.getUploadedAt().compareTo(b.getUploadedAt()));
-
+        // Ensure all photos have content hashes
         for (Photo photo : allPhotos) {
-            String hash = photo.getContentHash();
-            if (hash == null) {
-                // Compute hash for photos that don't have one (backwards compatibility)
-                hash = Photo.computeHash(photo.getContent());
+            if (photo.getContentHash() == null) {
+                String hash = Photo.computeHash(photo.getContent());
                 photo.setContentHash(hash);
                 photoRepository.save(photo);
             }
+        }
 
-            if (seenHashes.containsKey(hash)) {
-                // This is a duplicate - delete it
-                duplicates.add(photo);
-                photoRepository.deleteById(photo.getId());
-                eventService.logEvent(photo.getId(), EventType.REJECTED,
-                        "Duplicate removed: " + photo.getFilename());
-                log.info("Duplicate photo removed: {} ({}), duplicate of {}",
-                        photo.getFilename(), photo.getId(), seenHashes.get(hash).getFilename());
+        // Find the best photo for each content hash based on status priority
+        // If same priority, keep the one uploaded first (oldest)
+        for (Photo photo : allPhotos) {
+            String hash = photo.getContentHash();
+            Photo existing = bestByHash.get(hash);
+
+            if (existing == null) {
+                bestByHash.put(hash, photo);
             } else {
-                seenHashes.put(hash, photo);
+                int currentPriority = getStatusPriority(photo.getStatus());
+                int existingPriority = getStatusPriority(existing.getStatus());
+
+                if (currentPriority > existingPriority) {
+                    // Current photo has higher priority - it becomes the one to keep
+                    bestByHash.put(hash, photo);
+                } else if (currentPriority == existingPriority) {
+                    // Same priority - keep the older one
+                    if (photo.getUploadedAt().isBefore(existing.getUploadedAt())) {
+                        bestByHash.put(hash, photo);
+                    }
+                }
+                // Otherwise, existing photo has higher priority - keep it
+            }
+        }
+
+        // Delete all photos that are not the "best" for their hash
+        for (Photo photo : allPhotos) {
+            String hash = photo.getContentHash();
+            Photo best = bestByHash.get(hash);
+
+            if (!photo.getId().equals(best.getId())) {
+                duplicates.add(photo);
+                eventService.logEvent(photo.getId(), EventType.DELETED,
+                        "Duplicate removed: " + photo.getFilename() + " (kept " + best.getStatus() + " version)");
+                photoRepository.deleteById(photo.getId());
+                log.info("Duplicate photo removed: {} ({}) [{}], kept {} ({}) [{}]",
+                        photo.getFilename(), photo.getId(), photo.getStatus(),
+                        best.getFilename(), best.getId(), best.getStatus());
             }
         }
 

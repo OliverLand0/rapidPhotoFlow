@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { X, Check, XCircle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { X, Check, XCircle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles, Keyboard } from "lucide-react";
 import { Button } from "../ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { TagEditor } from "./TagEditor";
@@ -28,11 +28,31 @@ export function PhotoPreviewModal({
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAutoTagging, setIsAutoTagging] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const { toast } = useToast();
 
   const canApprove = photo.status === "PROCESSED" || photo.status === "REJECTED";
   const canReject = photo.status === "PROCESSED" || photo.status === "FAILED" || photo.status === "APPROVED";
   const canRetry = photo.status === "FAILED";
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+
+    // Get scrollbar width to prevent layout shift
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = "hidden";
+    document.body.style.paddingRight = `${scrollbarWidth}px`;
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+      document.documentElement.style.overflow = "";
+    };
+  }, []);
 
   // Navigation
   const currentIndex = photos?.findIndex((p) => p.id === photo.id) ?? -1;
@@ -130,23 +150,79 @@ export function PhotoPreviewModal({
     }
   };
 
-  // Handle keyboard navigation
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      onClose();
-    } else if (e.key === "ArrowLeft") {
-      handlePrev();
-    } else if (e.key === "ArrowRight") {
-      handleNext();
-    }
-  };
+  // Handle keyboard shortcuts
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      // Ignore if typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+
+      switch (key) {
+        case "escape":
+          onClose();
+          break;
+        case "arrowleft":
+          handlePrev();
+          break;
+        case "arrowright":
+          handleNext();
+          break;
+        case "a":
+          // Approve
+          if (canApprove && isLoading === null) {
+            e.preventDefault();
+            handleAction("approve");
+          }
+          break;
+        case "r":
+          // Reject
+          if (canReject && isLoading === null) {
+            e.preventDefault();
+            handleAction("reject");
+          }
+          break;
+        case "t":
+          // Retry
+          if (canRetry && isLoading === null) {
+            e.preventDefault();
+            handleAction("retry");
+          }
+          break;
+        case "d":
+          // Delete
+          if (!isDeleting) {
+            e.preventDefault();
+            handleDelete();
+          }
+          break;
+        case "i":
+          // AI Auto-tag
+          if (!isAutoTagging) {
+            e.preventDefault();
+            handleAutoTag();
+          }
+          break;
+        case "?":
+          // Toggle shortcuts help
+          e.preventDefault();
+          setShowShortcuts((prev) => !prev);
+          break;
+      }
+    },
+    [onClose, handlePrev, handleNext, canApprove, canReject, canRetry, isLoading, isDeleting, isAutoTagging]
+  );
+
+  // Global keyboard event listener
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
@@ -161,9 +237,19 @@ export function PhotoPreviewModal({
             <h2 className="text-sm font-medium truncate max-w-[300px]">{photo.filename}</h2>
             <StatusBadge status={photo.status} />
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowShortcuts(true)}
+              title="Keyboard shortcuts (?)"
+            >
+              <Keyboard className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onClose} title="Close (Esc)">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Content */}
@@ -262,16 +348,19 @@ export function PhotoPreviewModal({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full justify-start text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-400 hover:bg-green-500/10"
+                  className="w-full justify-between text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-400 hover:bg-green-500/10"
                   onClick={() => handleAction("approve")}
                   disabled={isLoading !== null}
                 >
-                  {isLoading === "approve" ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Check className="h-4 w-4 mr-2" />
-                  )}
-                  Approve
+                  <span className="flex items-center">
+                    {isLoading === "approve" ? (
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4 mr-2" />
+                    )}
+                    Approve
+                  </span>
+                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">A</kbd>
                 </Button>
               )}
 
@@ -279,16 +368,19 @@ export function PhotoPreviewModal({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full justify-start text-red-600 dark:text-red-500 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-500/10"
+                  className="w-full justify-between text-red-600 dark:text-red-500 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-500/10"
                   onClick={() => handleAction("reject")}
                   disabled={isLoading !== null}
                 >
-                  {isLoading === "reject" ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <XCircle className="h-4 w-4 mr-2" />
-                  )}
-                  Reject
+                  <span className="flex items-center">
+                    {isLoading === "reject" ? (
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <XCircle className="h-4 w-4 mr-2" />
+                    )}
+                    Reject
+                  </span>
+                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">R</kbd>
                 </Button>
               )}
 
@@ -296,16 +388,19 @@ export function PhotoPreviewModal({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full justify-start"
+                  className="w-full justify-between"
                   onClick={() => handleAction("retry")}
                   disabled={isLoading !== null}
                 >
-                  {isLoading === "retry" ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                  )}
-                  Retry Processing
+                  <span className="flex items-center">
+                    {isLoading === "retry" ? (
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Retry Processing
+                  </span>
+                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">T</kbd>
                 </Button>
               )}
 
@@ -313,22 +408,85 @@ export function PhotoPreviewModal({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                  className="w-full justify-between text-destructive hover:text-destructive hover:bg-destructive/10"
                   onClick={handleDelete}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4 mr-2" />
-                  )}
-                  Delete Photo
+                  <span className="flex items-center">
+                    {isDeleting ? (
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-2" />
+                    )}
+                    Delete Photo
+                  </span>
+                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">D</kbd>
                 </Button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Keyboard Shortcuts Overlay */}
+      {showShortcuts && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60"
+          onClick={() => setShowShortcuts(false)}
+        >
+          <div
+            className="bg-background border border-border rounded-lg shadow-2xl p-6 max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Keyboard className="h-5 w-5" />
+                Keyboard Shortcuts
+              </h3>
+              <Button variant="ghost" size="sm" onClick={() => setShowShortcuts(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Navigate photos</span>
+                <div className="flex gap-1">
+                  <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">{"\u2190"}</kbd>
+                  <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">{"\u2192"}</kbd>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Approve photo</span>
+                <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">A</kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Reject photo</span>
+                <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">R</kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Retry processing</span>
+                <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">T</kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">AI auto-tag</span>
+                <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">I</kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Delete photo</span>
+                <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">D</kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Close modal</span>
+                <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">Esc</kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Show shortcuts</span>
+                <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">?</kbd>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

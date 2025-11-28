@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle, XCircle, RefreshCw, X } from "lucide-react";
+import { CheckCircle, XCircle, RefreshCw, X, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { useToast } from "../ui/toast";
 import { photoClient } from "../../lib/api/client";
@@ -12,10 +12,13 @@ interface BulkActionBarProps {
   onActionComplete: (response: BulkActionResponse) => void;
 }
 
-const actionLabels: Record<ActionType, string> = {
+type BulkAction = ActionType | "delete";
+
+const actionLabels: Record<BulkAction, string> = {
   approve: "approved",
   reject: "rejected",
   retry: "retried",
+  delete: "deleted",
 };
 
 export function BulkActionBar({
@@ -24,7 +27,7 @@ export function BulkActionBar({
   onClearSelection,
   onActionComplete,
 }: BulkActionBarProps) {
-  const [isLoading, setIsLoading] = useState<ActionType | null>(null);
+  const [isLoading, setIsLoading] = useState<BulkAction | null>(null);
   const { toast } = useToast();
   const count = selectedIds.size;
 
@@ -33,11 +36,13 @@ export function BulkActionBar({
 
   if (count === 0) return null;
 
-  const handleAction = async (action: ActionType) => {
+  const handleAction = async (action: BulkAction) => {
     setIsLoading(action);
     try {
       const ids = Array.from(selectedIds);
-      const response = await photoClient.performBulkAction(ids, action);
+      const response = action === "delete"
+        ? await photoClient.bulkDelete(ids)
+        : await photoClient.performBulkAction(ids, action);
       onActionComplete(response);
       onClearSelection();
 
@@ -125,6 +130,21 @@ export function BulkActionBar({
               Retry All
             </Button>
           )}
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleAction("delete")}
+            disabled={isLoading !== null}
+            className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
+          >
+            {isLoading === "delete" ? (
+              <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" />
+            ) : (
+              <Trash2 className="w-4 h-4 mr-1.5" />
+            )}
+            Delete All
+          </Button>
         </div>
 
         <Button

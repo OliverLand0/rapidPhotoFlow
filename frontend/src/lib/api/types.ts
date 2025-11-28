@@ -13,6 +13,7 @@ export type EventType =
   | "PROCESSING_FAILED"
   | "APPROVED"
   | "REJECTED"
+  | "DELETED"
   | "RETRY_REQUESTED"
   | "TAG_ADDED"
   | "TAG_REMOVED"

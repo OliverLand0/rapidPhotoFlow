@@ -13,7 +13,7 @@ const navItems = [
 ];
 
 export function Layout() {
-  const { photos, lastUpdated } = usePhotos();
+  const { photos, lastUpdated, uploadingCount } = usePhotos();
   const [aboutOpen, setAboutOpen] = useState(false);
 
   return (
@@ -69,7 +69,7 @@ export function Layout() {
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
 
       {/* Status Summary Bar */}
-      <StatusSummaryBar photos={photos} lastUpdated={lastUpdated} />
+      <StatusSummaryBar photos={photos} lastUpdated={lastUpdated} uploadingCount={uploadingCount} />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">

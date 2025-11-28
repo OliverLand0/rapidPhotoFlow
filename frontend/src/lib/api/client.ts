@@ -149,6 +149,13 @@ export const photoClient = {
     });
   },
 
+  async bulkDelete(ids: string[]): Promise<BulkActionResponse> {
+    return fetchJson<BulkActionResponse>(`${API_BASE}/photos/bulk-delete`, {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    });
+  },
+
   async removeDuplicates(): Promise<PhotoListResponse> {
     const response = await fetch(`${API_BASE}/photos/duplicates`, {
       method: "DELETE",

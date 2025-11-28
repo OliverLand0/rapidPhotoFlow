@@ -6,6 +6,7 @@ import com.rapidphotoflow.dto.ActionRequest;
 import com.rapidphotoflow.dto.AddTagRequest;
 import com.rapidphotoflow.dto.BulkActionRequest;
 import com.rapidphotoflow.dto.BulkActionResponse;
+import com.rapidphotoflow.dto.BulkDeleteRequest;
 import com.rapidphotoflow.dto.PhotoDTO;
 import com.rapidphotoflow.dto.PhotoListResponse;
 import com.rapidphotoflow.dto.StatusCountDTO;
@@ -165,6 +166,33 @@ public class PhotoController {
                 .success(successPhotos)
                 .errors(errors)
                 .successCount(successPhotos.size())
+                .errorCount(errors.size())
+                .build());
+    }
+
+    @PostMapping("/bulk-delete")
+    @Operation(summary = "Bulk delete photos", description = "Delete multiple photos at once")
+    public ResponseEntity<BulkActionResponse> bulkDelete(
+            @Valid @RequestBody BulkDeleteRequest request) {
+
+        List<PhotoDTO> deletedPhotos = new ArrayList<>();
+        Map<String, String> errors = new HashMap<>();
+
+        for (UUID id : request.getIds()) {
+            try {
+                photoService.getPhotoById(id).ifPresent(photo -> {
+                    deletedPhotos.add(PhotoDTO.fromEntity(photo));
+                });
+                photoService.delete(id);
+            } catch (Exception e) {
+                errors.put(id.toString(), e.getMessage());
+            }
+        }
+
+        return ResponseEntity.ok(BulkActionResponse.builder()
+                .success(deletedPhotos)
+                .errors(errors)
+                .successCount(deletedPhotos.size())
                 .errorCount(errors.size())
                 .build());
     }

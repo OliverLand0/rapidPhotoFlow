@@ -31,21 +31,17 @@ describe("StatusSummaryBar", () => {
 
   it("should display all status counts", () => {
     const photos: Photo[] = [
-      createPhoto("1", "PENDING"),
-      createPhoto("2", "PENDING"),
-      createPhoto("3", "PROCESSING"),
-      createPhoto("4", "PROCESSED"),
-      createPhoto("5", "FAILED"),
-      createPhoto("6", "APPROVED"),
-      createPhoto("7", "REJECTED"),
+      createPhoto("1", "PROCESSED"),
+      createPhoto("2", "PROCESSED"),
+      createPhoto("3", "FAILED"),
+      createPhoto("4", "APPROVED"),
+      createPhoto("5", "REJECTED"),
     ];
 
     renderWithRouter(
       <StatusSummaryBar photos={photos} lastUpdated={new Date("2024-01-15T11:50:00Z")} />
     );
 
-    expect(screen.getByText(/Pending:/)).toBeInTheDocument();
-    expect(screen.getByText(/Processing:/)).toBeInTheDocument();
     expect(screen.getByText(/Ready:/)).toBeInTheDocument();
     expect(screen.getByText(/Failed:/)).toBeInTheDocument();
     expect(screen.getByText(/Approved:/)).toBeInTheDocument();
@@ -106,9 +102,5 @@ describe("StatusSummaryBar", () => {
 
     const totalLink = screen.getByRole("link", { name: /Total:/ });
     expect(totalLink).toHaveAttribute("href", "/review");
-
-    // Pending and Processing should NOT be links
-    expect(screen.queryByRole("link", { name: /Pending:/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Processing:/ })).not.toBeInTheDocument();
   });
 });

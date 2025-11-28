@@ -1,33 +1,42 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload, Sparkles, AlertTriangle } from "lucide-react";
 import { UploadDropzone } from "../features/photos/components/UploadDropzone";
 import { StatusBadge } from "../components/shared/StatusBadge";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
 import { Switch } from "../components/ui/switch";
+import { Dialog, DialogHeader, DialogContent } from "../components/ui/dialog";
 import { EmptyState } from "../components/shared/EmptyState";
 import { photoClient, aiClient } from "../lib/api/client";
 import { usePhotos } from "../lib/PhotosContext";
 import { useAISettings } from "../hooks/useAISettings";
 import { formatRelativeTime, formatFileSize } from "../lib/utils";
 
+const BULK_UPLOAD_WARNING_THRESHOLD = 100;
+
 interface UploadingFile {
   name: string;
   size: number;
   preview?: string;
+  photoId?: string;
 }
 
 export function UploadPage() {
   const navigate = useNavigate();
-  const { photos, refresh } = usePhotos();
+  const { photos, refresh, setUploadingCount } = usePhotos();
   const { autoTagOnUpload, setAutoTagOnUpload } = useAISettings();
 
   // Upload state for preview
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Bulk upload warning state
+  const [showBulkWarning, setShowBulkWarning] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const pendingProgressCallback = useRef<((progress: number, speed: number) => void) | null>(null);
 
   // Track photos pending AI tagging
   const pendingAutoTagRef = useRef<Set<string>>(new Set());
@@ -73,8 +82,9 @@ export function UploadPage() {
     });
   }, [photos, autoTagOnUpload, refresh]);
 
-  const handleUpload = useCallback(
-    async (files: File[], onProgress: (progress: number, speed: number) => void) => {
+  // Perform the actual upload (separated so it can be called after warning dialog)
+  const performUpload = useCallback(
+    async (files: File[], onProgress: (progress: number, speed: number) => void, enableAutoTag: boolean) => {
       // Create previews for the files being uploaded
       const uploading: UploadingFile[] = files.map((file) => ({
         name: file.name,
@@ -85,6 +95,7 @@ export function UploadPage() {
       setUploadingFiles((prev) => [...prev, ...uploading]);
       setIsUploading(true);
       setUploadProgress(0);
+      setUploadingCount(files.length); // Track in global context for status bar
 
       // Track the visual progress separately from actual upload
       let visualProgress = 0;
@@ -112,6 +123,7 @@ export function UploadPage() {
         const BATCH_SIZE = 30;
         const totalBatches = Math.ceil(files.length / BATCH_SIZE);
         const uploadedPhotoIds: string[] = [];
+        const filenameToPhotoId: Record<string, string> = {};
 
         for (let i = 0; i < files.length; i += BATCH_SIZE) {
           const batch = files.slice(i, i + BATCH_SIZE);
@@ -129,12 +141,23 @@ export function UploadPage() {
           });
 
           const response = await promise;
-          // Track uploaded photo IDs for auto-tagging
-          response.items.forEach((photo) => uploadedPhotoIds.push(photo.id));
+          // Track uploaded photo IDs for auto-tagging and linking
+          response.items.forEach((photo) => {
+            uploadedPhotoIds.push(photo.id);
+            filenameToPhotoId[photo.filename] = photo.id;
+          });
         }
 
-        // If auto-tagging is enabled, add uploaded photos to pending queue
-        if (autoTagOnUpload) {
+        // Update uploadingFiles with their photo IDs for navigation
+        setUploadingFiles((prev) =>
+          prev.map((file) => ({
+            ...file,
+            photoId: filenameToPhotoId[file.name] || file.photoId,
+          }))
+        );
+
+        // If auto-tagging is enabled for this upload, add uploaded photos to pending queue
+        if (enableAutoTag) {
           uploadedPhotoIds.forEach((id) => pendingAutoTagRef.current.add(id));
           console.log(`Queued ${uploadedPhotoIds.length} photos for auto-tagging`);
         }
@@ -156,14 +179,59 @@ export function UploadPage() {
         await refresh();
         setIsUploading(false);
         setUploadProgress(100);
+        setUploadingCount(0); // Clear uploading count
       } catch (error) {
         clearInterval(progressInterval);
         console.error("Upload failed:", error);
         setIsUploading(false);
+        setUploadingCount(0); // Clear uploading count on error too
       }
     },
-    [refresh, autoTagOnUpload]
+    [refresh, setUploadingCount]
   );
+
+  const handleUpload = useCallback(
+    async (files: File[], onProgress: (progress: number, speed: number) => void) => {
+      // Check if we need to show bulk upload warning
+      if (autoTagOnUpload && files.length > BULK_UPLOAD_WARNING_THRESHOLD) {
+        // Store pending files and callback for after user confirms
+        setPendingFiles(files);
+        pendingProgressCallback.current = onProgress;
+        setShowBulkWarning(true);
+        return;
+      }
+
+      // No warning needed, proceed with upload
+      await performUpload(files, onProgress, autoTagOnUpload);
+    },
+    [autoTagOnUpload, performUpload]
+  );
+
+  // Handle bulk warning dialog actions
+  const handleBulkWarningProceed = useCallback(async () => {
+    setShowBulkWarning(false);
+    if (pendingFiles.length > 0 && pendingProgressCallback.current) {
+      await performUpload(pendingFiles, pendingProgressCallback.current, true);
+    }
+    setPendingFiles([]);
+    pendingProgressCallback.current = null;
+  }, [pendingFiles, performUpload]);
+
+  const handleBulkWarningDisableAI = useCallback(async () => {
+    setShowBulkWarning(false);
+    setAutoTagOnUpload(false);
+    if (pendingFiles.length > 0 && pendingProgressCallback.current) {
+      await performUpload(pendingFiles, pendingProgressCallback.current, false);
+    }
+    setPendingFiles([]);
+    pendingProgressCallback.current = null;
+  }, [pendingFiles, performUpload, setAutoTagOnUpload]);
+
+  const handleBulkWarningCancel = useCallback(() => {
+    setShowBulkWarning(false);
+    setPendingFiles([]);
+    pendingProgressCallback.current = null;
+  }, []);
 
 
   return (
@@ -223,7 +291,14 @@ export function UploadPage() {
                 {uploadingFiles.map((file, index) => (
                   <div
                     key={index}
-                    className="w-full pb-[100%] relative rounded-lg overflow-hidden bg-muted group"
+                    className={`w-full pb-[100%] relative rounded-lg overflow-hidden bg-muted group ${
+                      file.photoId && !isUploading ? "cursor-pointer" : ""
+                    }`}
+                    onClick={() => {
+                      if (file.photoId && !isUploading) {
+                        navigate(`/review?photoId=${file.photoId}`);
+                      }
+                    }}
                   >
                     <div className="absolute inset-0">
                       {file.preview ? (
@@ -245,6 +320,9 @@ export function UploadPage() {
                         <p className="text-white/70 text-xs">
                           {formatFileSize(file.size)}
                         </p>
+                        {file.photoId && !isUploading && (
+                          <p className="text-white/90 text-xs mt-1">Click to view</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -392,7 +470,8 @@ export function UploadPage() {
               {completedPhotos.slice(0, 20).map((photo) => (
                 <div
                   key={photo.id}
-                  className="px-4 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors"
+                  className="px-4 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/review?photoId=${photo.id}`)}
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">
@@ -446,6 +525,41 @@ export function UploadPage() {
           </div>
         </div>
       </div>
+
+      {/* Bulk Upload AI Tagging Warning Dialog */}
+      <Dialog open={showBulkWarning} onClose={handleBulkWarningCancel}>
+        <DialogHeader onClose={handleBulkWarningCancel}>
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            Large Upload with AI Tagging
+          </div>
+        </DialogHeader>
+        <DialogContent>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              You're about to upload <span className="font-semibold text-foreground">{pendingFiles.length} photos</span> with
+              AI auto-tagging enabled. This will make {pendingFiles.length} API calls to the AI service, which may:
+            </p>
+            <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1 ml-2">
+              <li>Incur significant API costs</li>
+              <li>Take a long time to process</li>
+              <li>Potentially hit rate limits</li>
+            </ul>
+            <div className="flex flex-col gap-2 pt-4">
+              <Button onClick={handleBulkWarningProceed} className="w-full">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Continue with AI Tagging
+              </Button>
+              <Button onClick={handleBulkWarningDisableAI} variant="outline" className="w-full">
+                Upload without AI Tagging
+              </Button>
+              <Button onClick={handleBulkWarningCancel} variant="ghost" className="w-full">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
