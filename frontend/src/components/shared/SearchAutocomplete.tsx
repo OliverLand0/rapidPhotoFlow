@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Search, Tag, FileImage, X } from "lucide-react";
-import { Input } from "../ui/input";
 import { cn } from "../../lib/utils";
 
 interface Suggestion {

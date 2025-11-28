@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import type { Photo } from "@/lib/api/types";
+import type { Photo } from "../../../lib/api/types";
 
 interface UsePhotoSelectionReturn {
   selectedIds: Set<string>;

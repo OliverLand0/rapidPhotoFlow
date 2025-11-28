@@ -51,6 +51,9 @@ public class PhotoEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "uploaded_by_user_id")
+    private UUID uploadedByUserId;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "photo_tags", joinColumns = @JoinColumn(name = "photo_id"))
     @Column(name = "tag")

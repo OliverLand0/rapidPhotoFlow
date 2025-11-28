@@ -104,6 +104,32 @@ output "openai_api_key_secret_arn" {
   value       = aws_secretsmanager_secret.openai_api_key.arn
 }
 
+# Cognito Outputs
+output "cognito_user_pool_id" {
+  description = "Cognito User Pool ID"
+  value       = aws_cognito_user_pool.main.id
+}
+
+output "cognito_user_pool_arn" {
+  description = "Cognito User Pool ARN"
+  value       = aws_cognito_user_pool.main.arn
+}
+
+output "cognito_client_id" {
+  description = "Cognito User Pool Client ID"
+  value       = aws_cognito_user_pool_client.frontend.id
+}
+
+output "cognito_domain" {
+  description = "Cognito User Pool Domain"
+  value       = aws_cognito_user_pool_domain.main.domain
+}
+
+output "cognito_issuer_uri" {
+  description = "Cognito Issuer URI for JWT validation"
+  value       = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.main.id}"
+}
+
 # Cost Summary
 output "estimated_monthly_cost" {
   description = "Estimated monthly cost breakdown"

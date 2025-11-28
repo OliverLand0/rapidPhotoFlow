@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { NavLink, Link, Outlet } from "react-router-dom";
-import { Upload, Grid3X3, Info } from "lucide-react";
+import { Upload, Grid3X3, Info, User, LogIn } from "lucide-react";
 import { cn } from "../lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { StatusSummaryBar } from "./shared/StatusSummaryBar";
 import { usePhotos } from "../lib/PhotosContext";
+import { useAuth } from "../contexts/AuthContext";
 import { AboutDialog } from "./AboutDialog";
 
 const navItems = [
@@ -14,6 +15,7 @@ const navItems = [
 
 export function Layout() {
   const { photos, lastUpdated, uploadingCount } = usePhotos();
+  const { user, isAuthenticated, isConfigured } = useAuth();
   const [aboutOpen, setAboutOpen] = useState(false);
 
   return (
@@ -58,8 +60,27 @@ export function Layout() {
               ))}
             </nav>
           </div>
-          {/* Right side: Theme Toggle */}
-          <div>
+          {/* Right side: User + Theme Toggle */}
+          <div className="flex items-center gap-2">
+            {isConfigured && (
+              isAuthenticated && user ? (
+                <Link
+                  to="/profile"
+                  className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <User className="h-4 w-4" />
+                  <span className="hidden sm:inline max-w-24 truncate">{user.username}</span>
+                </Link>
+              ) : (
+                <Link
+                  to="/login"
+                  className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span className="hidden sm:inline">Sign In</span>
+                </Link>
+              )
+            )}
             <ThemeToggle />
           </div>
         </div>

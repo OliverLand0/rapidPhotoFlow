@@ -19,7 +19,7 @@ export async function compressImage(file: File): Promise<File> {
     return file;
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     const img = new Image();
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");

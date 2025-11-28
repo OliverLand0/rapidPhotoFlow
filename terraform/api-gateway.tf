@@ -30,29 +30,29 @@ resource "aws_apigatewayv2_vpc_link" "main" {
   }
 }
 
-# Cloud Map integration for Backend
+# Direct HTTP integration to public ALB for Backend
 resource "aws_apigatewayv2_integration" "backend" {
   api_id             = aws_apigatewayv2_api.main.id
   integration_type   = "HTTP_PROXY"
   integration_method = "ANY"
-  integration_uri    = aws_service_discovery_service.backend.arn
-  connection_type    = "VPC_LINK"
-  connection_id      = aws_apigatewayv2_vpc_link.main.id
+  integration_uri    = "http://${aws_lb.main.dns_name}"
+  connection_type    = "INTERNET"
 
+  # Pass through the original path (e.g., /api/photos -> /api/photos)
   request_parameters = {
     "overwrite:path" = "$request.path"
   }
 }
 
-# Cloud Map integration for AI Service
+# Direct HTTP integration to public ALB for AI Service
 resource "aws_apigatewayv2_integration" "ai_service" {
   api_id             = aws_apigatewayv2_api.main.id
   integration_type   = "HTTP_PROXY"
   integration_method = "ANY"
-  integration_uri    = aws_service_discovery_service.ai_service.arn
-  connection_type    = "VPC_LINK"
-  connection_id      = aws_apigatewayv2_vpc_link.main.id
+  integration_uri    = "http://${aws_lb.main.dns_name}"
+  connection_type    = "INTERNET"
 
+  # Pass through the original path (e.g., /ai/process -> /ai/process)
   request_parameters = {
     "overwrite:path" = "$request.path"
   }

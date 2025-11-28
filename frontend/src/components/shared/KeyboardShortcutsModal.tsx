@@ -80,7 +80,7 @@ export function KeyboardShortcutsModal({
                         <span key={j} className="flex items-center">
                           {j > 0 && (
                             <span className="text-muted-foreground mx-1">
-                              {item.separator || " "}
+                              {"separator" in item ? item.separator : " "}
                             </span>
                           )}
                           <kbd className="px-2 py-1 bg-muted rounded text-xs font-mono">

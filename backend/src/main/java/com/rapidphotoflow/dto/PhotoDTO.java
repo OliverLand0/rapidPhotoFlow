@@ -22,6 +22,7 @@ public class PhotoDTO {
     private Instant uploadedAt;
     private Instant updatedAt;
     private List<String> tags;
+    private String uploadedByUsername;
 
     public static PhotoDTO fromEntity(Photo photo) {
         return PhotoDTO.builder()
@@ -34,6 +35,7 @@ public class PhotoDTO {
                 .uploadedAt(photo.getUploadedAt())
                 .updatedAt(photo.getUpdatedAt())
                 .tags(photo.getTags() != null ? new ArrayList<>(photo.getTags()) : new ArrayList<>())
+                .uploadedByUsername(photo.getUploadedByUsername())
                 .build();
     }
 }

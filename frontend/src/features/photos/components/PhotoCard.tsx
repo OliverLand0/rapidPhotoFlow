@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, X, RefreshCw } from "lucide-react";
+import { Check, X, RefreshCw, User } from "lucide-react";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Checkbox } from "../../../components/ui/checkbox";
@@ -164,6 +164,12 @@ export function PhotoCard({
 
       <div className="p-3">
         <p className="text-sm font-medium truncate">{photo.filename}</p>
+        {photo.uploadedByUsername && (
+          <p className="text-xs text-muted-foreground mt-0.5 truncate flex items-center gap-1">
+            <User className="h-3 w-3" />
+            {photo.uploadedByUsername}
+          </p>
+        )}
         {photo.failureReason && (
           <p className="text-xs text-destructive mt-1 truncate">
             {photo.failureReason}

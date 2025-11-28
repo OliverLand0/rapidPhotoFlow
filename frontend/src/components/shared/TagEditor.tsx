@@ -1,4 +1,4 @@
-import { useState, useCallback, KeyboardEvent } from "react";
+import { useState, useCallback, type KeyboardEvent } from "react";
 import { X, Plus, Loader2 } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";

@@ -46,8 +46,8 @@ export function BulkActionBar({
       onActionComplete(response);
       onClearSelection();
 
-      const successCount = response.success.length;
-      const failCount = response.errors.length;
+      const successCount = response.successCount;
+      const failCount = response.errorCount;
 
       if (successCount > 0 && failCount === 0) {
         toast({

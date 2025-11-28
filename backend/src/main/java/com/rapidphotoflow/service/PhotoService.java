@@ -4,9 +4,14 @@ import com.rapidphotoflow.domain.EventType;
 import com.rapidphotoflow.domain.Photo;
 import com.rapidphotoflow.domain.PhotoStatus;
 import com.rapidphotoflow.entity.PhotoEntity;
+import com.rapidphotoflow.entity.UserEntity;
 import com.rapidphotoflow.repository.PhotoRepository;
+import com.rapidphotoflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,10 +31,14 @@ public class PhotoService {
     private final PhotoRepository photoRepository;
     private final S3StorageService s3StorageService;
     private final EventService eventService;
+    private final UserRepository userRepository;
 
     @Transactional
     public List<Photo> uploadPhotos(List<MultipartFile> files) {
         List<Photo> uploadedPhotos = new ArrayList<>();
+
+        // Get current user from security context
+        UUID currentUserId = getCurrentUserId();
 
         for (MultipartFile file : files) {
             try {
@@ -52,6 +61,7 @@ public class PhotoService {
                         .status(PhotoStatus.PENDING)
                         .uploadedAt(now)
                         .updatedAt(now)
+                        .uploadedByUserId(currentUserId)
                         .tags(new HashSet<>())
                         .build();
 
@@ -67,6 +77,17 @@ public class PhotoService {
         }
 
         return uploadedPhotos;
+    }
+
+    private UUID getCurrentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
+            String cognitoSub = jwt.getSubject();
+            return userRepository.findByCognitoSub(cognitoSub)
+                    .map(UserEntity::getId)
+                    .orElse(null);
+        }
+        return null;
     }
 
     public Optional<Photo> getPhotoById(UUID id) {
@@ -295,6 +316,13 @@ public class PhotoService {
 
     // Convert entity to domain object
     private Photo entityToPhoto(PhotoEntity entity, byte[] content) {
+        String username = null;
+        if (entity.getUploadedByUserId() != null) {
+            username = userRepository.findById(entity.getUploadedByUserId())
+                    .map(UserEntity::getUsername)
+                    .orElse(null);
+        }
+
         return Photo.builder()
                 .id(entity.getId())
                 .filename(entity.getFilename())
@@ -306,6 +334,8 @@ public class PhotoService {
                 .failureReason(entity.getFailureReason())
                 .uploadedAt(entity.getUploadedAt())
                 .updatedAt(entity.getUpdatedAt())
+                .uploadedByUserId(entity.getUploadedByUserId())
+                .uploadedByUsername(username)
                 .tags(entity.getTags() != null ? new HashSet<>(entity.getTags()) : new HashSet<>())
                 .build();
     }

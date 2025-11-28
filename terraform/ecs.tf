@@ -123,6 +123,22 @@ resource "aws_ecs_task_definition" "backend" {
         {
           name  = "AI_SERVICE_URL"
           value = "http://ai-service.${local.name_prefix}.local:3001"
+        },
+        {
+          name  = "COGNITO_USER_POOL_ID"
+          value = aws_cognito_user_pool.main.id
+        },
+        {
+          name  = "COGNITO_CLIENT_ID"
+          value = aws_cognito_user_pool_client.frontend.id
+        },
+        {
+          name  = "COGNITO_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI"
+          value = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.main.id}"
         }
       ]
 
@@ -234,13 +250,16 @@ resource "aws_ecs_task_definition" "ai_service" {
   }
 }
 
-# Backend ECS Service (with ALB)
+# Backend ECS Service (with ALB and Cloud Map)
 resource "aws_ecs_service" "backend" {
   name            = "${local.name_prefix}-backend"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.backend.arn
   desired_count   = var.backend_desired_count
   launch_type     = "FARGATE"
+
+  # Give backend 180 seconds to start before health checks (it takes ~120s)
+  health_check_grace_period_seconds = 180
 
   network_configuration {
     subnets          = aws_subnet.public[*].id
@@ -254,18 +273,26 @@ resource "aws_ecs_service" "backend" {
     container_port   = 8080
   }
 
+  # Register with Cloud Map for API Gateway VPC Link integration
+  service_registries {
+    registry_arn = aws_service_discovery_service.backend.arn
+  }
+
   tags = {
     Name = "${local.name_prefix}-backend-service"
   }
 }
 
-# AI Service ECS Service (with ALB)
+# AI Service ECS Service (with ALB and Cloud Map)
 resource "aws_ecs_service" "ai_service" {
   name            = "${local.name_prefix}-ai-service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.ai_service.arn
   desired_count   = var.ai_service_desired_count
   launch_type     = "FARGATE"
+
+  # Give AI service 60 seconds to start before health checks
+  health_check_grace_period_seconds = 60
 
   network_configuration {
     subnets          = aws_subnet.public[*].id
@@ -277,6 +304,11 @@ resource "aws_ecs_service" "ai_service" {
     target_group_arn = aws_lb_target_group.ai_service.arn
     container_name   = "ai-service"
     container_port   = 3001
+  }
+
+  # Register with Cloud Map for API Gateway VPC Link integration
+  service_registries {
+    registry_arn = aws_service_discovery_service.ai_service.arn
   }
 
   tags = {

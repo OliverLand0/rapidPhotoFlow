@@ -1,0 +1,87 @@
+// Use relative URLs in production (CloudFront routes /api/* to backend)
+// Use localhost in development
+const isDev = import.meta.env.DEV;
+const API_BASE = isDev ? "http://localhost:8080" : "";
+
+export interface SyncUserRequest {
+  email: string;
+  username: string;
+}
+
+export interface UserDTO {
+  id: string;
+  email: string;
+  username: string;
+  createdAt: string;
+}
+
+export interface UpdateProfileRequest {
+  username?: string;
+}
+
+/**
+ * Sync user with backend after Cognito login/signup.
+ */
+export async function syncUser(
+  request: SyncUserRequest,
+  accessToken: string
+): Promise<UserDTO> {
+  const response = await fetch(`${API_BASE}/api/auth/sync`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to sync user: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get current user profile from backend.
+ */
+export async function getProfile(accessToken: string): Promise<UserDTO | null> {
+  const response = await fetch(`${API_BASE}/api/users/me`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`Failed to get profile: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Update user profile.
+ */
+export async function updateProfile(
+  request: UpdateProfileRequest,
+  accessToken: string
+): Promise<UserDTO> {
+  const response = await fetch(`${API_BASE}/api/users/me`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update profile: ${response.status}`);
+  }
+
+  return response.json();
+}

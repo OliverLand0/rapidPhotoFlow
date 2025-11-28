@@ -29,6 +29,7 @@ export interface Photo {
   uploadedAt: string;
   updatedAt: string;
   tags: string[];
+  uploadedByUsername?: string | null;
 }
 
 export interface EventLog {

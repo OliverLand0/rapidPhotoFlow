@@ -7,6 +7,7 @@ import type {
   StatusCount,
   BulkActionResponse,
 } from "./types";
+import { getAccessToken } from "../auth/cognitoConfig";
 
 // Use relative URLs in production (CloudFront routes /api/* and /ai/* to backend services)
 // Use localhost in development
@@ -14,11 +15,21 @@ const isDev = import.meta.env.DEV;
 const API_BASE = isDev ? "http://localhost:8080/api" : "/api";
 const AI_SERVICE_BASE = isDev ? "http://localhost:3001/api" : "/ai";
 
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const token = await getAccessToken();
+  if (token) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return {};
+}
+
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const authHeaders = await getAuthHeaders();
   const response = await fetch(url, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...authHeaders,
       ...options?.headers,
     },
   });
@@ -56,65 +67,73 @@ export const photoClient = {
     let lastLoaded = 0;
     let lastTime = 0;
 
-    const promise = new Promise<PhotoListResponse>((resolve, reject) => {
-      xhr.upload.addEventListener("loadstart", () => {
-        startTime = Date.now();
-        lastTime = startTime;
-        lastLoaded = 0;
-      });
+    const promise = (async () => {
+      // Get auth token before starting upload
+      const token = await getAccessToken();
 
-      xhr.upload.addEventListener("progress", (event) => {
-        if (event.lengthComputable && onProgress) {
-          const progress = Math.round((event.loaded / event.total) * 100);
+      return new Promise<PhotoListResponse>((resolve, reject) => {
+        xhr.upload.addEventListener("loadstart", () => {
+          startTime = Date.now();
+          lastTime = startTime;
+          lastLoaded = 0;
+        });
 
-          // Calculate speed (bytes per second) using a rolling window
-          const now = Date.now();
-          const timeDiff = (now - lastTime) / 1000; // seconds
-          const bytesDiff = event.loaded - lastLoaded;
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable && onProgress) {
+            const progress = Math.round((event.loaded / event.total) * 100);
 
-          // Only update speed if enough time has passed (avoid division by tiny numbers)
-          let speed = 0;
-          if (timeDiff >= 0.1) {
-            speed = bytesDiff / timeDiff;
-            lastTime = now;
-            lastLoaded = event.loaded;
-          } else if (lastTime > startTime) {
-            // Use previous speed calculation if not enough time passed
-            speed = bytesDiff / timeDiff || 0;
+            // Calculate speed (bytes per second) using a rolling window
+            const now = Date.now();
+            const timeDiff = (now - lastTime) / 1000; // seconds
+            const bytesDiff = event.loaded - lastLoaded;
+
+            // Only update speed if enough time has passed (avoid division by tiny numbers)
+            let speed = 0;
+            if (timeDiff >= 0.1) {
+              speed = bytesDiff / timeDiff;
+              lastTime = now;
+              lastLoaded = event.loaded;
+            } else if (lastTime > startTime) {
+              // Use previous speed calculation if not enough time passed
+              speed = bytesDiff / timeDiff || 0;
+            } else {
+              // First update - use overall speed
+              const totalTime = (now - startTime) / 1000;
+              speed = totalTime > 0 ? event.loaded / totalTime : 0;
+            }
+
+            onProgress(progress, speed);
+          }
+        });
+
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const response = JSON.parse(xhr.responseText);
+              resolve(response);
+            } catch {
+              reject(new Error("Invalid JSON response"));
+            }
           } else {
-            // First update - use overall speed
-            const totalTime = (now - startTime) / 1000;
-            speed = totalTime > 0 ? event.loaded / totalTime : 0;
+            reject(new Error(`Upload failed: ${xhr.status}`));
           }
+        });
 
-          onProgress(progress, speed);
+        xhr.addEventListener("error", () => {
+          reject(new Error("Network error during upload"));
+        });
+
+        xhr.addEventListener("abort", () => {
+          reject(new Error("Upload cancelled"));
+        });
+
+        xhr.open("POST", `${API_BASE}/photos`);
+        if (token) {
+          xhr.setRequestHeader("Authorization", `Bearer ${token}`);
         }
+        xhr.send(formData);
       });
-
-      xhr.addEventListener("load", () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const response = JSON.parse(xhr.responseText);
-            resolve(response);
-          } catch {
-            reject(new Error("Invalid JSON response"));
-          }
-        } else {
-          reject(new Error(`Upload failed: ${xhr.status}`));
-        }
-      });
-
-      xhr.addEventListener("error", () => {
-        reject(new Error("Network error during upload"));
-      });
-
-      xhr.addEventListener("abort", () => {
-        reject(new Error("Upload cancelled"));
-      });
-
-      xhr.open("POST", `${API_BASE}/photos`);
-      xhr.send(formData);
-    });
+    })();
 
     return {
       promise,
@@ -130,8 +149,10 @@ export const photoClient = {
   },
 
   async deletePhoto(photoId: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
     const response = await fetch(`${API_BASE}/photos/${photoId}`, {
       method: "DELETE",
+      headers: authHeaders,
     });
     if (!response.ok) {
       throw new Error(`Failed to delete photo: ${response.status}`);
@@ -160,8 +181,10 @@ export const photoClient = {
   },
 
   async removeDuplicates(): Promise<PhotoListResponse> {
+    const authHeaders = await getAuthHeaders();
     const response = await fetch(`${API_BASE}/photos/duplicates`, {
       method: "DELETE",
+      headers: authHeaders,
     });
     if (!response.ok) {
       throw new Error(`Failed to remove duplicates: ${response.status}`);
@@ -181,9 +204,11 @@ export const photoClient = {
   },
 
   async removeTag(photoId: string, tag: string): Promise<Photo> {
+    const authHeaders = await getAuthHeaders();
     const encodedTag = encodeURIComponent(tag);
     const response = await fetch(`${API_BASE}/photos/${photoId}/tags/${encodedTag}`, {
       method: "DELETE",
+      headers: authHeaders,
     });
     if (!response.ok) {
       throw new Error(`Failed to remove tag: ${response.status}`);
@@ -215,7 +240,8 @@ export const seedClient = {
   },
 
   async clearData(): Promise<void> {
-    await fetch(`${API_BASE}/seed`, { method: "DELETE" });
+    const authHeaders = await getAuthHeaders();
+    await fetch(`${API_BASE}/seed`, { method: "DELETE", headers: authHeaders });
   },
 };
 

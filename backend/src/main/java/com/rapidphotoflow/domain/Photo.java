@@ -23,6 +23,8 @@ public class Photo {
     private String failureReason;
     private Instant uploadedAt;
     private Instant updatedAt;
+    private UUID uploadedByUserId;
+    private String uploadedByUsername;
     @Builder.Default
     private Set<String> tags = new HashSet<>();
 
