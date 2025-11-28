@@ -232,19 +232,6 @@ export const eventClient = {
   },
 };
 
-export const seedClient = {
-  async seedData(): Promise<PhotoListResponse> {
-    return fetchJson<PhotoListResponse>(`${API_BASE}/seed`, {
-      method: "POST",
-    });
-  },
-
-  async clearData(): Promise<void> {
-    const authHeaders = await getAuthHeaders();
-    await fetch(`${API_BASE}/seed`, { method: "DELETE", headers: authHeaders });
-  },
-};
-
 export interface AutoTagResponse {
   success: boolean;
   tags: string[];

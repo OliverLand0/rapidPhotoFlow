@@ -230,19 +230,20 @@ export function PhotoPreviewModal({
       />
 
       {/* Modal */}
-      <div className="relative z-10 flex max-h-[90vh] max-w-[90vw] flex-col bg-background border border-border rounded-lg shadow-2xl overflow-hidden">
+      <div className="relative z-10 flex h-[100dvh] w-screen md:h-auto md:max-h-[90vh] md:max-w-[90vw] md:w-auto flex-col bg-background md:border md:border-border md:rounded-lg shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/50">
-          <div className="flex items-center gap-3">
-            <h2 className="text-sm font-medium truncate max-w-[300px]">{photo.filename}</h2>
+        <div className="flex items-center justify-between px-3 md:px-4 py-2 md:py-3 border-b border-border bg-muted/50">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+            <h2 className="text-xs md:text-sm font-medium truncate">{photo.filename}</h2>
             <StatusBadge status={photo.status} />
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowShortcuts(true)}
               title="Keyboard shortcuts (?)"
+              className="hidden md:flex"
             >
               <Keyboard className="h-4 w-4" />
             </Button>
@@ -253,9 +254,9 @@ export function PhotoPreviewModal({
         </div>
 
         {/* Content */}
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
           {/* Image */}
-          <div className="relative flex-1 flex items-center justify-center bg-black min-h-[400px] min-w-[500px]">
+          <div className="relative flex-1 flex items-center justify-center bg-black min-h-[200px] md:min-h-[400px] md:min-w-[500px]">
             {/* Navigation arrows */}
             {hasPrev && (
               <button
@@ -277,7 +278,7 @@ export function PhotoPreviewModal({
             <img
               src={photoClient.getPhotoContentUrl(photo.id)}
               alt={photo.filename}
-              className="max-h-[70vh] max-w-full object-contain"
+              className="max-h-[40vh] md:max-h-[70vh] max-w-full object-contain"
               onError={(e) => {
                 (e.target as HTMLImageElement).src =
                   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect fill='%231e293b' width='400' height='300'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2364748b' font-family='system-ui' font-size='16'%3EImage not available%3C/text%3E%3C/svg%3E";
@@ -293,9 +294,9 @@ export function PhotoPreviewModal({
           </div>
 
           {/* Sidebar */}
-          <div className="w-64 border-l border-border bg-background flex flex-col">
+          <div className="w-full md:w-64 border-t md:border-t-0 md:border-l border-border bg-background flex flex-col overflow-y-auto max-h-[50vh] md:max-h-none">
             {/* Photo details */}
-            <div className="p-4 space-y-3 flex-1">
+            <div className="p-3 md:p-4 space-y-2 md:space-y-3 flex-1">
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Filename</p>
                 <p className="text-sm break-all">{photo.filename}</p>
@@ -341,7 +342,7 @@ export function PhotoPreviewModal({
             </div>
 
             {/* Actions */}
-            <div className="p-4 border-t border-border space-y-2">
+            <div className="p-3 md:p-4 border-t border-border space-y-2">
               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Actions</p>
 
               {canApprove && (
@@ -360,7 +361,7 @@ export function PhotoPreviewModal({
                     )}
                     Approve
                   </span>
-                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">A</kbd>
+                  <kbd className="hidden md:inline px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">A</kbd>
                 </Button>
               )}
 
@@ -380,7 +381,7 @@ export function PhotoPreviewModal({
                     )}
                     Reject
                   </span>
-                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">R</kbd>
+                  <kbd className="hidden md:inline px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">R</kbd>
                 </Button>
               )}
 
@@ -398,9 +399,9 @@ export function PhotoPreviewModal({
                     ) : (
                       <RefreshCw className="h-4 w-4 mr-2" />
                     )}
-                    Retry Processing
+                    Retry
                   </span>
-                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">T</kbd>
+                  <kbd className="hidden md:inline px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">T</kbd>
                 </Button>
               )}
 
@@ -418,9 +419,9 @@ export function PhotoPreviewModal({
                     ) : (
                       <Trash2 className="h-4 w-4 mr-2" />
                     )}
-                    Delete Photo
+                    Delete
                   </span>
-                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">D</kbd>
+                  <kbd className="hidden md:inline px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">D</kbd>
                 </Button>
               </div>
             </div>

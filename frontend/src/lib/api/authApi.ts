@@ -43,27 +43,6 @@ export async function syncUser(
 }
 
 /**
- * Get current user profile from backend.
- */
-export async function getProfile(accessToken: string): Promise<UserDTO | null> {
-  const response = await fetch(`${API_BASE}/api/users/me`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (response.status === 404) {
-    return null;
-  }
-
-  if (!response.ok) {
-    throw new Error(`Failed to get profile: ${response.status}`);
-  }
-
-  return response.json();
-}
-
-/**
  * Update user profile.
  */
 export async function updateProfile(

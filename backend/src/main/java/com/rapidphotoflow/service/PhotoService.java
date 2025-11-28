@@ -307,13 +307,6 @@ public class PhotoService {
         return entityToPhoto(entity, null);
     }
 
-    public List<Photo> getPhotosByTag(String tag) {
-        String normalizedTag = tag.toLowerCase().trim();
-        return photoRepository.findByTag(normalizedTag).stream()
-                .map(e -> entityToPhoto(e, null))
-                .collect(Collectors.toList());
-    }
-
     // Convert entity to domain object
     private Photo entityToPhoto(PhotoEntity entity, byte[] content) {
         String username = null;

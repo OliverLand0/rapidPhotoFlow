@@ -369,24 +369,26 @@ export function ReviewPage() {
 
   return (
     <div className="h-full">
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold mb-2">Review Gallery</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl md:text-2xl font-bold mb-1 md:mb-2">Review Gallery</h1>
+          <p className="text-sm md:text-base text-muted-foreground">
             Review and approve processed photos
           </p>
         </div>
         <Button
           variant="outline"
+          size="sm"
           onClick={handleRemoveDuplicates}
           disabled={isRemovingDuplicates}
+          className="self-start"
         >
           {isRemovingDuplicates ? (
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
           ) : (
             <Copy className="w-4 h-4 mr-2" />
           )}
-          Remove Duplicates
+          <span className="hidden sm:inline">Remove </span>Duplicates
         </Button>
       </div>
 
@@ -404,14 +406,14 @@ export function ReviewPage() {
       )}
 
       {/* Filter Tabs */}
-      <div className="border-b mb-4">
-        <div className="flex gap-4 -mb-px">
+      <div className="border-b mb-4 -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex gap-4 -mb-px overflow-x-auto scrollbar-hide">
           {tabs.map((tab) => (
             <button
               key={tab.value}
               onClick={() => setStatusFilter(tab.value)}
               className={cn(
-                "pb-3 px-1 text-sm font-medium border-b-2 transition-colors",
+                "pb-3 px-1 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                 statusFilter === tab.value
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -424,16 +426,40 @@ export function ReviewPage() {
       </div>
 
       {/* Search and Sort Filters */}
-      <div className="flex items-center gap-4 mb-4">
-        {filteredPhotos.length > 0 && (
-          <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-            <Checkbox
-              checked={isAllSelected(filteredPhotos)}
-              onCheckedChange={handleSelectAll}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-4">
+        <div className="flex items-center gap-3 sm:gap-4">
+          {filteredPhotos.length > 0 && (
+            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+              <Checkbox
+                checked={isAllSelected(filteredPhotos)}
+                onCheckedChange={handleSelectAll}
+              />
+              <span className="hidden sm:inline">Select all</span>
+              <span className="sm:hidden">All</span>
+            </label>
+          )}
+          <div className="flex items-center gap-2 sm:hidden">
+            <SavedViewsDropdown
+              views={views}
+              presetViews={presetViews}
+              userViews={userViews}
+              currentFilters={{
+                search,
+                status: statusFilter as StatusFilter,
+                sort: sortBy,
+              }}
+              onSelectView={handleSelectView}
+              onCreateView={handleCreateView}
+              onDeleteView={handleDeleteView}
             />
-            Select all
-          </label>
-        )}
+            <button
+              onClick={() => setShowShortcutsModal(true)}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Keyboard className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
         <div className="flex-1">
           <PhotoFilters
             search={search}
@@ -449,33 +475,35 @@ export function ReviewPage() {
             tags={allTags}
           />
         </div>
-        <SavedViewsDropdown
-          views={views}
-          presetViews={presetViews}
-          userViews={userViews}
-          currentFilters={{
-            search,
-            status: statusFilter as StatusFilter,
-            sort: sortBy,
-          }}
-          onSelectView={handleSelectView}
-          onCreateView={handleCreateView}
-          onDeleteView={handleDeleteView}
-        />
-        <button
-          onClick={() => setShowShortcutsModal(true)}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <Keyboard className="w-4 h-4" />
-          <span className="hidden sm:inline">Shortcuts</span>
-          <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">?</kbd>
-        </button>
+        <div className="hidden sm:flex items-center gap-2">
+          <SavedViewsDropdown
+            views={views}
+            presetViews={presetViews}
+            userViews={userViews}
+            currentFilters={{
+              search,
+              status: statusFilter as StatusFilter,
+              sort: sortBy,
+            }}
+            onSelectView={handleSelectView}
+            onCreateView={handleCreateView}
+            onDeleteView={handleDeleteView}
+          />
+          <button
+            onClick={() => setShowShortcutsModal(true)}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Keyboard className="w-4 h-4" />
+            <span className="hidden md:inline">Shortcuts</span>
+            <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">?</kbd>
+          </button>
+        </div>
       </div>
 
       {/* Two-column layout */}
-      <div className="flex gap-6 h-[calc(100vh-280px)]">
+      <div className="flex gap-6 h-[calc(100vh-320px)] md:h-[calc(100vh-280px)]">
         {/* Photo Grid */}
-        <div className="flex-1 overflow-y-auto" ref={photoGridRef}>
+        <div className="flex-1 overflow-y-auto -mx-4 px-4 md:mx-0 md:px-0" ref={photoGridRef}>
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (

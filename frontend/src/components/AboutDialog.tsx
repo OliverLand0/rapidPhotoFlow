@@ -7,7 +7,6 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
-  Pause,
   Search,
   Tag,
   Keyboard,
@@ -17,6 +16,10 @@ import {
   Moon,
   Zap,
   History,
+  Shield,
+  Cloud,
+  Smartphone,
+  User,
 } from "lucide-react";
 
 interface AboutDialogProps {
@@ -33,10 +36,11 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
         <section>
           <h3 className="font-semibold text-base mb-2">Project Overview</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            RapidPhotoFlow is a lightweight photo upload, processing, and review
+            RapidPhotoFlow is a cloud-native photo upload, processing, and review
             workflow application built for the TeamFront AI Hackathon (November
-            2025). This project demonstrates AI-first engineering principles,
-            where the entire codebase was generated using AI tools.
+            2025). Deployed on AWS with secure authentication, this project
+            demonstrates AI-first engineering principles where the entire codebase
+            was generated using Claude Code.
           </p>
         </section>
 
@@ -45,24 +49,39 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
           <h3 className="font-semibold text-base mb-3">Features</h3>
           <div className="grid gap-3">
             <FeatureItem
+              icon={Shield}
+              title="Secure Authentication"
+              description="AWS Cognito authentication with email verification, password reset, and secure JWT tokens"
+            />
+            <FeatureItem
+              icon={Cloud}
+              title="Cloud Storage"
+              description="Photos stored securely in AWS S3 with CloudFront CDN for fast global delivery"
+            />
+            <FeatureItem
+              icon={Smartphone}
+              title="Mobile Friendly"
+              description="Fully responsive design that works on phones, tablets, and desktops"
+            />
+            <FeatureItem
+              icon={User}
+              title="User Profiles"
+              description="Personal photo library with account management and secure logout"
+            />
+            <FeatureItem
               icon={Upload}
               title="Multi-Photo Upload"
-              description="Drag-and-drop upload with automatic image compression and batch processing (30 files at a time)"
+              description="Drag-and-drop upload with progress tracking and batch processing (30 files at a time)"
             />
             <FeatureItem
               icon={Cpu}
               title="Async Processing Pipeline"
-              description="Simulated async processing with real-time status updates and configurable processing speed"
-            />
-            <FeatureItem
-              icon={Pause}
-              title="Processing Control"
-              description="Pause and resume the processing pipeline on demand"
+              description="Backend processing with real-time status updates via polling"
             />
             <FeatureItem
               icon={Grid3X3}
               title="Photo Gallery"
-              description="Visual gallery with status-based tabs, pagination, and thumbnail previews"
+              description="Visual gallery with status-based tabs, pagination, and full-screen preview"
             />
             <FeatureItem
               icon={Search}
@@ -77,7 +96,7 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
             <FeatureItem
               icon={Sparkles}
               title="AI Auto-Tagging"
-              description="Automatic tag generation using OpenAI GPT-4o-mini vision API (optional, disabled by default)"
+              description="Automatic tag generation using OpenAI GPT-4o-mini vision API with bulk upload warnings"
             />
             <FeatureItem
               icon={CheckCircle}
@@ -92,7 +111,7 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
             <FeatureItem
               icon={XCircle}
               title="Bulk Actions"
-              description="Select multiple photos and perform bulk approve, reject, or retry operations"
+              description="Select multiple photos and perform bulk approve, reject, or delete operations"
             />
             <FeatureItem
               icon={Keyboard}
@@ -130,21 +149,44 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
         {/* Tech Stack */}
         <section>
           <h3 className="font-semibold text-base mb-2">Tech Stack</h3>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">React 19</Badge>
-            <Badge variant="secondary">TypeScript</Badge>
-            <Badge variant="secondary">Vite</Badge>
-            <Badge variant="secondary">Tailwind CSS</Badge>
-            <Badge variant="secondary">Spring Boot</Badge>
-            <Badge variant="secondary">Java 21</Badge>
-            <Badge variant="secondary">OpenAI API</Badge>
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">Frontend</p>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant="secondary">React 19</Badge>
+                <Badge variant="secondary">TypeScript</Badge>
+                <Badge variant="secondary">Vite</Badge>
+                <Badge variant="secondary">Tailwind CSS</Badge>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">Backend</p>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant="secondary">Spring Boot 3</Badge>
+                <Badge variant="secondary">Java 21</Badge>
+                <Badge variant="secondary">Python</Badge>
+                <Badge variant="secondary">OpenAI API</Badge>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">AWS Infrastructure</p>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant="secondary">ECS Fargate</Badge>
+                <Badge variant="secondary">API Gateway</Badge>
+                <Badge variant="secondary">S3</Badge>
+                <Badge variant="secondary">CloudFront</Badge>
+                <Badge variant="secondary">RDS PostgreSQL</Badge>
+                <Badge variant="secondary">Cognito</Badge>
+                <Badge variant="secondary">Terraform</Badge>
+              </div>
+            </div>
           </div>
         </section>
 
         {/* Footer */}
         <section className="pt-2 border-t">
           <p className="text-xs text-muted-foreground text-center">
-            Built with AI assistance for the TeamFront AI Hackathon
+            Built entirely with Claude Code for the TeamFront AI Hackathon
           </p>
         </section>
       </DialogContent>

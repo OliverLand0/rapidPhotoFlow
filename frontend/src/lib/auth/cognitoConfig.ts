@@ -212,14 +212,6 @@ export async function getAccessToken(): Promise<string | null> {
 }
 
 /**
- * Get the current user's JWT ID token.
- */
-export async function getIdToken(): Promise<string | null> {
-  const session = await getCurrentSession();
-  return session?.getIdToken().getJwtToken() || null;
-}
-
-/**
  * Get current user info from the ID token.
  */
 export async function getCurrentUserInfo(): Promise<CognitoUserInfo | null> {

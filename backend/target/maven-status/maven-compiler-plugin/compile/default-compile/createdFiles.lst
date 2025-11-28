@@ -43,10 +43,8 @@ com/rapidphotoflow/controller/PhotoController.class
 com/rapidphotoflow/entity/EventLogEntity.class
 com/rapidphotoflow/repository/EventLogRepository.class
 com/rapidphotoflow/service/PhotoService.class
-com/rapidphotoflow/repository/InMemoryEventRepository.class
 com/rapidphotoflow/dto/EventDTO$EventDTOBuilder.class
 com/rapidphotoflow/service/EventService.class
-com/rapidphotoflow/repository/InMemoryPhotoRepository.class
 com/rapidphotoflow/dto/PhotoListResponse.class
 com/rapidphotoflow/dto/PhotoDTO.class
 com/rapidphotoflow/entity/EventLogEntity$EventLogEntityBuilder.class

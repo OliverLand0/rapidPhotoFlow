@@ -19,7 +19,7 @@ export function Layout() {
   const [aboutOpen, setAboutOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
@@ -93,9 +93,18 @@ export function Layout() {
       <StatusSummaryBar photos={photos} lastUpdated={lastUpdated} uploadingCount={uploadingCount} />
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 flex-1">
         <Outlet />
       </main>
+
+      {/* Footer */}
+      <footer className="border-t bg-muted/30 py-4 mt-auto">
+        <div className="container mx-auto px-4 text-center text-xs text-muted-foreground">
+          <span>Build {__BUILD_VERSION__}</span>
+          <span className="mx-2">|</span>
+          <span>Last deployed: {new Date(__BUILD_DATE__).toLocaleString()}</span>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -237,14 +237,14 @@ export function UploadPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-6 md:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold mb-1">Upload Photos</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl md:text-2xl font-bold mb-1">Upload Photos</h1>
+          <p className="text-sm md:text-base text-muted-foreground">
             Drop photos to start the processing workflow
           </p>
         </div>
-        <Button onClick={() => navigate("/review")} variant="outline">
+        <Button onClick={() => navigate("/review")} variant="outline" size="sm" className="self-start sm:self-auto">
           Go to Review
           <ArrowRight className="h-4 w-4 ml-2" />
         </Button>
@@ -287,7 +287,7 @@ export function UploadPage() {
               </p>
 
               {/* Photo Grid Preview */}
-              <div className="grid grid-cols-5 gap-2 max-h-[200px] overflow-y-auto">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[200px] overflow-y-auto">
                 {uploadingFiles.map((file, index) => (
                   <div
                     key={index}
@@ -496,9 +496,9 @@ export function UploadPage() {
       </Card>
 
       {/* Status Legend */}
-      <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+      <div className="mt-6 p-3 md:p-4 bg-muted/50 rounded-lg">
         <h3 className="text-sm font-medium mb-3">Status Legend</h3>
-        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-x-6 gap-y-2 text-sm">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
             <span className="text-muted-foreground">Pending</span>
