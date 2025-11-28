@@ -1,1 +1,25 @@
+# Environment files
 ai-service/.env
+frontend/.env
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+target/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local development
+localstack-data/
