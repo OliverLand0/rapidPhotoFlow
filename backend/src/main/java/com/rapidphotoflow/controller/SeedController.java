@@ -1,17 +1,19 @@
 package com.rapidphotoflow.controller;
 
-import com.rapidphotoflow.domain.Photo;
 import com.rapidphotoflow.domain.PhotoStatus;
 import com.rapidphotoflow.dto.PhotoDTO;
 import com.rapidphotoflow.dto.PhotoListResponse;
-import com.rapidphotoflow.repository.InMemoryEventRepository;
-import com.rapidphotoflow.repository.InMemoryPhotoRepository;
+import com.rapidphotoflow.entity.PhotoEntity;
+import com.rapidphotoflow.repository.EventLogRepository;
+import com.rapidphotoflow.repository.PhotoRepository;
 import com.rapidphotoflow.service.EventService;
+import com.rapidphotoflow.service.S3StorageService;
 import com.rapidphotoflow.domain.EventType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -30,8 +33,9 @@ import java.util.stream.Collectors;
 @Tag(name = "Seed", description = "Demo data seeding endpoints")
 public class SeedController {
 
-    private final InMemoryPhotoRepository photoRepository;
-    private final InMemoryEventRepository eventRepository;
+    private final PhotoRepository photoRepository;
+    private final EventLogRepository eventLogRepository;
+    private final S3StorageService s3StorageService;
     private final EventService eventService;
 
     private final Random random = new Random();
@@ -51,24 +55,25 @@ public class SeedController {
 
     @PostMapping
     @Operation(summary = "Seed demo data", description = "Create sample photos in various states for demo")
+    @Transactional
     public ResponseEntity<PhotoListResponse> seedData() {
-        List<Photo> photos = new ArrayList<>();
+        List<PhotoEntity> photos = new ArrayList<>();
 
         // Create photos in various states
         for (int i = 0; i < 8; i++) {
             String filename = SAMPLE_FILENAMES[i % SAMPLE_FILENAMES.length];
-            Photo photo = createSamplePhoto(filename);
+            PhotoEntity entity = createSamplePhoto(filename);
 
             // Distribute across statuses
             PhotoStatus targetStatus = getTargetStatus(i);
-            transitionToStatus(photo, targetStatus);
+            transitionToStatus(entity, targetStatus);
 
-            photoRepository.save(photo);
-            photos.add(photo);
+            photoRepository.save(entity);
+            photos.add(entity);
         }
 
         List<PhotoDTO> dtos = photos.stream()
-                .map(PhotoDTO::fromEntity)
+                .map(this::entityToDto)
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(PhotoListResponse.of(dtos));
@@ -76,13 +81,23 @@ public class SeedController {
 
     @DeleteMapping
     @Operation(summary = "Clear all data", description = "Remove all photos and events")
+    @Transactional
     public ResponseEntity<Void> clearData() {
+        // Delete all photos from S3
+        photoRepository.findAll().forEach(photo -> {
+            try {
+                s3StorageService.deletePhoto(photo.getId());
+            } catch (Exception e) {
+                // Ignore S3 errors during cleanup
+            }
+        });
+
+        eventLogRepository.deleteAll();
         photoRepository.deleteAll();
-        eventRepository.deleteAll();
         return ResponseEntity.ok().build();
     }
 
-    private Photo createSamplePhoto(String filename) {
+    private PhotoEntity createSamplePhoto(String filename) {
         // Create a small placeholder image (1x1 pixel PNG)
         byte[] placeholderImage = new byte[]{
                 (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
@@ -96,20 +111,25 @@ public class SeedController {
                 0x44, (byte) 0xAE, 0x42, 0x60, (byte) 0x82
         };
 
+        UUID photoId = UUID.randomUUID();
         String mimeType = filename.endsWith(".png") ? "image/png" : "image/jpeg";
         long size = 50000 + random.nextInt(200000); // Random size 50KB-250KB
 
         Instant uploadTime = Instant.now().minusSeconds(random.nextInt(3600)); // Within last hour
 
-        return Photo.builder()
-                .id(UUID.randomUUID())
+        // Upload placeholder to S3
+        String s3Key = s3StorageService.uploadPhoto(photoId, placeholderImage, mimeType);
+
+        return PhotoEntity.builder()
+                .id(photoId)
                 .filename(filename)
                 .mimeType(mimeType)
                 .sizeBytes(size)
-                .content(placeholderImage)
+                .s3Key(s3Key)
                 .status(PhotoStatus.PENDING)
                 .uploadedAt(uploadTime)
                 .updatedAt(uploadTime)
+                .tags(new HashSet<>())
                 .build();
     }
 
@@ -126,52 +146,68 @@ public class SeedController {
         };
     }
 
-    private void transitionToStatus(Photo photo, PhotoStatus targetStatus) {
+    private void transitionToStatus(PhotoEntity entity, PhotoStatus targetStatus) {
         // Log creation event
-        eventService.logEvent(photo.getId(), EventType.PHOTO_CREATED,
-                "Photo uploaded: " + photo.getFilename());
+        eventService.logEvent(entity.getId(), EventType.PHOTO_CREATED,
+                "Photo uploaded: " + entity.getFilename());
 
         if (targetStatus == PhotoStatus.PENDING) {
             return;
         }
 
         // Transition through states
-        photo.startProcessing();
-        photo.setUpdatedAt(photo.getUploadedAt().plusSeconds(2));
-        eventService.logEvent(photo.getId(), EventType.PROCESSING_STARTED,
-                "Processing started: " + photo.getFilename());
+        entity.setStatus(PhotoStatus.PROCESSING);
+        entity.setUpdatedAt(entity.getUploadedAt().plusSeconds(2));
+        eventService.logEvent(entity.getId(), EventType.PROCESSING_STARTED,
+                "Processing started: " + entity.getFilename());
 
         if (targetStatus == PhotoStatus.PROCESSING) {
             return;
         }
 
         if (targetStatus == PhotoStatus.FAILED) {
-            photo.markFailed("Simulated failure for demo");
-            photo.setUpdatedAt(photo.getUploadedAt().plusSeconds(5));
-            eventService.logEvent(photo.getId(), EventType.PROCESSING_FAILED,
-                    "Processing failed: " + photo.getFilename() + " - Simulated failure for demo");
+            entity.setStatus(PhotoStatus.FAILED);
+            entity.setFailureReason("Simulated failure for demo");
+            entity.setUpdatedAt(entity.getUploadedAt().plusSeconds(5));
+            eventService.logEvent(entity.getId(), EventType.PROCESSING_FAILED,
+                    "Processing failed: " + entity.getFilename() + " - Simulated failure for demo");
             return;
         }
 
-        photo.markProcessed();
-        photo.setUpdatedAt(photo.getUploadedAt().plusSeconds(5));
-        eventService.logEvent(photo.getId(), EventType.PROCESSING_COMPLETED,
-                "Processing completed: " + photo.getFilename());
+        entity.setStatus(PhotoStatus.PROCESSED);
+        entity.setFailureReason(null);
+        entity.setUpdatedAt(entity.getUploadedAt().plusSeconds(5));
+        eventService.logEvent(entity.getId(), EventType.PROCESSING_COMPLETED,
+                "Processing completed: " + entity.getFilename());
 
         if (targetStatus == PhotoStatus.PROCESSED) {
             return;
         }
 
         if (targetStatus == PhotoStatus.APPROVED) {
-            photo.approve();
-            photo.setUpdatedAt(photo.getUploadedAt().plusSeconds(10));
-            eventService.logEvent(photo.getId(), EventType.APPROVED,
-                    "Photo approved: " + photo.getFilename());
+            entity.setStatus(PhotoStatus.APPROVED);
+            entity.setUpdatedAt(entity.getUploadedAt().plusSeconds(10));
+            eventService.logEvent(entity.getId(), EventType.APPROVED,
+                    "Photo approved: " + entity.getFilename());
         } else if (targetStatus == PhotoStatus.REJECTED) {
-            photo.reject();
-            photo.setUpdatedAt(photo.getUploadedAt().plusSeconds(10));
-            eventService.logEvent(photo.getId(), EventType.REJECTED,
-                    "Photo rejected: " + photo.getFilename());
+            entity.setStatus(PhotoStatus.REJECTED);
+            entity.setUpdatedAt(entity.getUploadedAt().plusSeconds(10));
+            eventService.logEvent(entity.getId(), EventType.REJECTED,
+                    "Photo rejected: " + entity.getFilename());
         }
+    }
+
+    private PhotoDTO entityToDto(PhotoEntity entity) {
+        return PhotoDTO.builder()
+                .id(entity.getId())
+                .filename(entity.getFilename())
+                .mimeType(entity.getMimeType())
+                .sizeBytes(entity.getSizeBytes())
+                .status(entity.getStatus())
+                .failureReason(entity.getFailureReason())
+                .uploadedAt(entity.getUploadedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .tags(entity.getTags() != null ? new ArrayList<>(entity.getTags()) : new ArrayList<>())
+                .build();
     }
 }

@@ -101,19 +101,23 @@ Example response: ["sunset", "beach", "silhouette", "orange", "peaceful", "ocean
   return [];
 }
 
-// Health check endpoint
+// Health check endpoints (both paths for compatibility)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'ai-tagging' });
 });
 
+app.get('/ai/health', (req, res) => {
+  res.json({ status: 'ok', service: 'ai-tagging' });
+});
+
 /**
- * POST /api/analyze
+ * POST /ai/analyze
  * Analyze an image and return suggested tags
  *
  * Body: { photoId: string }
  * Response: { tags: string[], success: boolean }
  */
-app.post('/api/analyze', async (req, res) => {
+app.post('/ai/analyze', async (req, res) => {
   try {
     const { photoId } = req.body;
 
@@ -148,13 +152,13 @@ app.post('/api/analyze', async (req, res) => {
 });
 
 /**
- * POST /api/analyze-and-apply
+ * POST /ai/analyze-and-apply
  * Analyze an image and automatically apply tags to it via the backend
  *
  * Body: { photoId: string }
  * Response: { tags: string[], applied: boolean, success: boolean }
  */
-app.post('/api/analyze-and-apply', async (req, res) => {
+app.post('/ai/analyze-and-apply', async (req, res) => {
   try {
     const { photoId } = req.body;
 

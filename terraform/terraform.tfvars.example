@@ -1,0 +1,32 @@
+# Example Terraform Variables (Minimal Architecture - No ALB)
+# Copy this file to terraform.tfvars and fill in your values
+
+# AWS Configuration
+aws_region  = "us-east-1"
+environment = "dev"
+
+# VPC Configuration
+vpc_cidr           = "10.0.0.0/16"
+availability_zones = ["us-east-1a", "us-east-1b"]
+
+# RDS Configuration
+db_instance_class = "db.t3.micro" # Free tier eligible
+db_name           = "rapidphotoflow"
+db_username       = "rpfadmin"
+
+# ECS Configuration
+backend_cpu           = 256  # 0.25 vCPU
+backend_memory        = 512  # 512 MB
+ai_service_cpu        = 256
+ai_service_memory     = 512
+backend_desired_count    = 1
+ai_service_desired_count = 1
+
+# Cost Optimization
+enable_multi_az = false  # Set to true for production (doubles RDS cost)
+
+# OpenAI API Key (required)
+openai_api_key = "sk-your-openai-api-key-here"
+
+# Optional: Custom Domain (leave empty for CloudFront default domain)
+# domain_name = "rapidphotoflow.example.com"

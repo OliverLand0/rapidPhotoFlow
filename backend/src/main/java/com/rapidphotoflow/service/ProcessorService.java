@@ -1,16 +1,18 @@
 package com.rapidphotoflow.service;
 
 import com.rapidphotoflow.domain.EventType;
-import com.rapidphotoflow.domain.Photo;
 import com.rapidphotoflow.domain.PhotoStatus;
-import com.rapidphotoflow.repository.InMemoryPhotoRepository;
+import com.rapidphotoflow.entity.PhotoEntity;
+import com.rapidphotoflow.repository.PhotoRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -18,24 +20,13 @@ import java.util.concurrent.Executors;
 @Slf4j
 public class ProcessorService {
 
-    private final InMemoryPhotoRepository photoRepository;
+    private final PhotoRepository photoRepository;
+    private final S3StorageService s3StorageService;
     private final EventService eventService;
     private final AiTaggingService aiTaggingService;
     private final boolean autoTagOnUpload;
 
     private final ExecutorService executor = Executors.newFixedThreadPool(20);
-
-    public ProcessorService(
-            InMemoryPhotoRepository photoRepository,
-            EventService eventService,
-            AiTaggingService aiTaggingService,
-            @Value("${ai.service.auto-tag-on-upload:false}") boolean autoTagOnUpload) {
-        this.photoRepository = photoRepository;
-        this.eventService = eventService;
-        this.aiTaggingService = aiTaggingService;
-        this.autoTagOnUpload = autoTagOnUpload;
-        log.info("Auto-tagging on upload: {}", autoTagOnUpload ? "ENABLED" : "DISABLED");
-    }
 
     // Supported image MIME types
     private static final Set<String> SUPPORTED_MIME_TYPES = Set.of(
@@ -48,9 +39,23 @@ public class ProcessorService {
             "image/tiff"
     );
 
+    public ProcessorService(
+            PhotoRepository photoRepository,
+            S3StorageService s3StorageService,
+            EventService eventService,
+            AiTaggingService aiTaggingService,
+            @Value("${ai.service.auto-tag-on-upload:false}") boolean autoTagOnUpload) {
+        this.photoRepository = photoRepository;
+        this.s3StorageService = s3StorageService;
+        this.eventService = eventService;
+        this.aiTaggingService = aiTaggingService;
+        this.autoTagOnUpload = autoTagOnUpload;
+        log.info("Auto-tagging on upload: {}", autoTagOnUpload ? "ENABLED" : "DISABLED");
+    }
+
     @Scheduled(fixedDelay = 500)
     public void processNextBatch() {
-        List<Photo> pendingPhotos = photoRepository.findByStatus(PhotoStatus.PENDING);
+        List<PhotoEntity> pendingPhotos = photoRepository.findByStatusOrderByUploadedAtDesc(PhotoStatus.PENDING);
 
         if (pendingPhotos.isEmpty()) {
             return;
@@ -60,42 +65,60 @@ public class ProcessorService {
 
         pendingPhotos.stream()
                 .limit(50)
-                .forEach(photo -> executor.submit(() -> processPhoto(photo)));
+                .forEach(photo -> executor.submit(() -> processPhoto(photo.getId())));
     }
 
-    private void processPhoto(Photo photo) {
+    @Transactional
+    public void processPhoto(UUID photoId) {
+        PhotoEntity entity = photoRepository.findById(photoId).orElse(null);
+        if (entity == null) {
+            log.warn("Photo not found for processing: {}", photoId);
+            return;
+        }
+
+        // Skip if not pending (may have been processed by another thread)
+        if (entity.getStatus() != PhotoStatus.PENDING) {
+            return;
+        }
+
         try {
             // Start processing
-            photo.startProcessing();
-            photoRepository.save(photo);
-            eventService.logEvent(photo.getId(), EventType.PROCESSING_STARTED,
-                    "Processing started: " + photo.getFilename());
-            log.info("Processing started: {} ({})", photo.getFilename(), photo.getId());
+            entity.setStatus(PhotoStatus.PROCESSING);
+            photoRepository.save(entity);
+            eventService.logEvent(photoId, EventType.PROCESSING_STARTED,
+                    "Processing started: " + entity.getFilename());
+            log.info("Processing started: {} ({})", entity.getFilename(), photoId);
+
+            // Download content from S3 for validation
+            byte[] content = s3StorageService.downloadPhoto(photoId);
 
             // Validate the photo
-            String validationError = validatePhoto(photo);
+            String validationError = validatePhoto(entity, content);
 
             if (validationError == null) {
-                photo.markProcessed();
-                photoRepository.save(photo);
-                eventService.logEvent(photo.getId(), EventType.PROCESSING_COMPLETED,
-                        "Processing completed: " + photo.getFilename());
-                log.info("Processing completed: {} ({})", photo.getFilename(), photo.getId());
+                entity.setStatus(PhotoStatus.PROCESSED);
+                entity.setFailureReason(null);
+                photoRepository.save(entity);
+                eventService.logEvent(photoId, EventType.PROCESSING_COMPLETED,
+                        "Processing completed: " + entity.getFilename());
+                log.info("Processing completed: {} ({})", entity.getFilename(), photoId);
 
                 // Trigger auto-tagging asynchronously (non-blocking)
-                triggerAutoTagging(photo);
+                triggerAutoTagging(photoId, entity.getFilename());
             } else {
-                photo.markFailed(validationError);
-                photoRepository.save(photo);
-                eventService.logEvent(photo.getId(), EventType.PROCESSING_FAILED,
-                        "Processing failed: " + photo.getFilename() + " - " + validationError);
-                log.warn("Processing failed: {} ({}) - {}", photo.getFilename(), photo.getId(), validationError);
+                entity.setStatus(PhotoStatus.FAILED);
+                entity.setFailureReason(validationError);
+                photoRepository.save(entity);
+                eventService.logEvent(photoId, EventType.PROCESSING_FAILED,
+                        "Processing failed: " + entity.getFilename() + " - " + validationError);
+                log.warn("Processing failed: {} ({}) - {}", entity.getFilename(), photoId, validationError);
             }
 
         } catch (Exception e) {
-            photo.markFailed("Unexpected error: " + e.getMessage());
-            photoRepository.save(photo);
-            log.error("Error processing photo: {}", photo.getId(), e);
+            entity.setStatus(PhotoStatus.FAILED);
+            entity.setFailureReason("Unexpected error: " + e.getMessage());
+            photoRepository.save(entity);
+            log.error("Error processing photo: {}", photoId, e);
         }
     }
 
@@ -104,26 +127,26 @@ public class ProcessorService {
      * This runs asynchronously and does not block photo processing.
      * Only runs if auto-tagging is enabled in configuration.
      */
-    private void triggerAutoTagging(Photo photo) {
+    private void triggerAutoTagging(UUID photoId, String filename) {
         if (!autoTagOnUpload) {
-            log.debug("Auto-tagging disabled, skipping for photo {}", photo.getId());
+            log.debug("Auto-tagging disabled, skipping for photo {}", photoId);
             return;
         }
 
         executor.submit(() -> {
             try {
                 if (!aiTaggingService.isAvailable()) {
-                    log.debug("AI service not available, skipping auto-tagging for photo {}", photo.getId());
+                    log.debug("AI service not available, skipping auto-tagging for photo {}", photoId);
                     return;
                 }
 
-                List<String> tags = aiTaggingService.autoTagPhoto(photo.getId());
+                List<String> tags = aiTaggingService.autoTagPhoto(photoId);
                 if (!tags.isEmpty()) {
-                    eventService.logEvent(photo.getId(), EventType.AUTO_TAGGED,
+                    eventService.logEvent(photoId, EventType.AUTO_TAGGED,
                             "Auto-tagged with: " + String.join(", ", tags));
                 }
             } catch (Exception e) {
-                log.error("Error during auto-tagging for photo {}: {}", photo.getId(), e.getMessage());
+                log.error("Error during auto-tagging for photo {}: {}", photoId, e.getMessage());
             }
         });
     }
@@ -131,25 +154,24 @@ public class ProcessorService {
     /**
      * Validate the photo and return an error message if invalid, or null if valid.
      */
-    private String validatePhoto(Photo photo) {
+    private String validatePhoto(PhotoEntity entity, byte[] content) {
         // Check if content exists
-        if (photo.getContent() == null || photo.getContent().length == 0) {
+        if (content == null || content.length == 0) {
             return "File content is empty or corrupted";
         }
 
         // Check MIME type
-        String mimeType = photo.getMimeType();
+        String mimeType = entity.getMimeType();
         if (mimeType == null || !SUPPORTED_MIME_TYPES.contains(mimeType.toLowerCase())) {
             return "Unsupported image format: " + (mimeType != null ? mimeType : "unknown");
         }
 
         // Check file size (reject files over 50MB)
-        if (photo.getSizeBytes() > 50 * 1024 * 1024) {
+        if (entity.getSizeBytes() > 50 * 1024 * 1024) {
             return "File size exceeds 50MB limit";
         }
 
         // All validations passed
         return null;
     }
-
 }

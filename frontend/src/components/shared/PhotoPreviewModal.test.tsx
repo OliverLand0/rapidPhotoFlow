@@ -91,11 +91,10 @@ describe("PhotoPreviewModal", () => {
 
     render(<PhotoPreviewModal {...defaultProps} onClose={handleClose} />);
 
-    // Find the close button (X icon button in header)
-    const closeButtons = screen.getAllByRole("button");
-    const closeButton = closeButtons.find((btn) => btn.querySelector("svg"));
+    // Find the close button by its title attribute
+    const closeButton = screen.getByTitle("Close (Esc)");
 
-    await user.click(closeButton!);
+    await user.click(closeButton);
 
     expect(handleClose).toHaveBeenCalled();
   });
@@ -117,8 +116,8 @@ describe("PhotoPreviewModal", () => {
 
     render(<PhotoPreviewModal {...defaultProps} onClose={handleClose} />);
 
-    const modal = document.querySelector("[tabindex]")!;
-    fireEvent.keyDown(modal, { key: "Escape" });
+    // Component uses window.addEventListener for keyboard events
+    fireEvent.keyDown(document, { key: "Escape" });
 
     expect(handleClose).toHaveBeenCalled();
   });
@@ -308,12 +307,11 @@ describe("PhotoPreviewModal", () => {
         />
       );
 
-      const modal = document.querySelector("[tabindex]")!;
-
-      fireEvent.keyDown(modal, { key: "ArrowLeft" });
+      // Component uses window.addEventListener for keyboard events
+      fireEvent.keyDown(document, { key: "ArrowLeft" });
       expect(handleNavigate).toHaveBeenCalledWith(photos[0]);
 
-      fireEvent.keyDown(modal, { key: "ArrowRight" });
+      fireEvent.keyDown(document, { key: "ArrowRight" });
       expect(handleNavigate).toHaveBeenCalledWith(photos[2]);
     });
 

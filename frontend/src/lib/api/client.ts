@@ -8,8 +8,11 @@ import type {
   BulkActionResponse,
 } from "./types";
 
-const API_BASE = "http://localhost:8080/api";
-const AI_SERVICE_BASE = "http://localhost:3001/api";
+// Use relative URLs in production (CloudFront routes /api/* and /ai/* to backend services)
+// Use localhost in development
+const isDev = import.meta.env.DEV;
+const API_BASE = isDev ? "http://localhost:8080/api" : "/api";
+const AI_SERVICE_BASE = isDev ? "http://localhost:3001/api" : "/ai";
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {

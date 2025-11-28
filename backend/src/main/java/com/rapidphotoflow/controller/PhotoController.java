@@ -101,9 +101,15 @@ public class PhotoController {
     @Operation(summary = "Get photo content", description = "Retrieve the actual image content")
     public ResponseEntity<byte[]> getPhotoContent(@PathVariable UUID id) {
         return photoService.getPhotoById(id)
-                .map(photo -> ResponseEntity.ok()
-                        .contentType(MediaType.parseMediaType(photo.getMimeType()))
-                        .body(photo.getContent()))
+                .map(photo -> {
+                    byte[] content = photoService.getPhotoContent(id);
+                    if (content == null) {
+                        return ResponseEntity.notFound().<byte[]>build();
+                    }
+                    return ResponseEntity.ok()
+                            .contentType(MediaType.parseMediaType(photo.getMimeType()))
+                            .body(content);
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
