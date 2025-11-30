@@ -36,7 +36,10 @@ public class ProcessorService {
             "image/gif",
             "image/webp",
             "image/bmp",
-            "image/tiff"
+            "image/tiff",
+            "image/heif",
+            "image/heic",
+            "image/avif"
     );
 
     public ProcessorService(

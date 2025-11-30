@@ -13,7 +13,7 @@ import { getAccessToken } from "../auth/cognitoConfig";
 // Use localhost in development
 const isDev = import.meta.env.DEV;
 const API_BASE = isDev ? "http://localhost:8080/api" : "/api";
-const AI_SERVICE_BASE = isDev ? "http://localhost:3001/api" : "/ai";
+const AI_SERVICE_BASE = isDev ? "http://localhost:3001/ai" : "/ai";
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const token = await getAccessToken();
@@ -246,7 +246,9 @@ export const aiClient = {
    */
   async healthCheck(): Promise<boolean> {
     try {
-      const response = await fetch(`${AI_SERVICE_BASE.replace('/api', '')}/health`);
+      // Use /ai/health which works in both dev (localhost:3001/ai/health) and prod (/ai/health via CloudFront)
+      const healthUrl = isDev ? "http://localhost:3001/health" : "/ai/health";
+      const response = await fetch(healthUrl);
       return response.ok;
     } catch {
       return false;

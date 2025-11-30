@@ -3,6 +3,7 @@
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/service/PhotoService.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/service/S3StorageService.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/dto/EventDTO.java
+/Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/config/LocalSecurityConfig.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/entity/PhotoEntity.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/service/EventService.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/dto/BulkDeleteRequest.java
@@ -29,6 +30,7 @@
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/controller/AuthController.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/dto/StatusCountDTO.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/repository/PhotoRepository.java
+/Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/config/LocalAwsConfig.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/service/UserService.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/repository/UserRepository.java
 /Users/oliverland/Documents/GitHub/rapidPhotoFlow/backend/src/main/java/com/rapidphotoflow/domain/Photo.java

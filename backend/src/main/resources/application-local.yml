@@ -1,0 +1,33 @@
+# Local development profile
+# Activated with: SPRING_PROFILES_ACTIVE=local
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/rapidphotoflow
+    username: postgres
+    password: postgres
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Disable JWT validation for local dev (empty issuer-uri disables JWT)
+          issuer-uri:
+
+# Override S3 to use LocalStack
+aws:
+  s3:
+    bucket:
+      photos: rpf-local-photos
+    endpoint: http://localhost:4566
+
+# AI Service - local development
+ai:
+  service:
+    url: http://localhost:3001
+
+# More verbose logging for local dev
+logging:
+  level:
+    com.rapidphotoflow: DEBUG
+    org.springframework.security: DEBUG

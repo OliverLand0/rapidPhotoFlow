@@ -198,6 +198,66 @@ npm install
 npm start
 ```
 
+---
+
+# 🖥️ Local Development (Full Stack)
+
+Run the entire stack locally without AWS dependencies using Docker Compose.
+
+## Prerequisites
+- Docker & Docker Compose
+- Java 17+
+- Node.js 20+
+
+## 1. Start Local Services
+```bash
+docker-compose up -d
+```
+This starts:
+- **PostgreSQL** on port 5432
+- **LocalStack (S3)** on port 4566
+
+## 2. Run Backend (Local Profile)
+```bash
+cd backend
+SPRING_PROFILES_ACTIVE=local ./mvnw spring-boot:run
+```
+Or on Windows:
+```bash
+set SPRING_PROFILES_ACTIVE=local && mvn spring-boot:run
+```
+
+## 3. Run Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## 4. (Optional) Run AI Service
+```bash
+cd ai-service
+OPENAI_API_KEY=your-key npm start
+```
+
+## Local vs Production
+
+| Feature | Local | Production |
+|---------|-------|------------|
+| Database | Docker PostgreSQL | AWS RDS |
+| Storage | LocalStack S3 | AWS S3 |
+| Auth | Disabled (permitAll) | AWS Cognito JWT |
+| AI Service | Optional | AWS ECS |
+
+## Stopping Local Services
+```bash
+docker-compose down
+# To also remove data volumes:
+docker-compose down -v
+```
+
+---
+
 # 🧪 Testing
 
 ## Backend

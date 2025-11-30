@@ -207,6 +207,9 @@ export function getCurrentSession(): Promise<CognitoUserSession | null> {
  * Get the current user's JWT access token.
  */
 export async function getAccessToken(): Promise<string | null> {
+  if (!isCognitoConfigured()) {
+    return null;
+  }
   const session = await getCurrentSession();
   return session?.getAccessToken().getJwtToken() || null;
 }
@@ -215,6 +218,9 @@ export async function getAccessToken(): Promise<string | null> {
  * Get current user info from the ID token.
  */
 export async function getCurrentUserInfo(): Promise<CognitoUserInfo | null> {
+  if (!isCognitoConfigured()) {
+    return null;
+  }
   const session = await getCurrentSession();
   if (!session) {
     return null;

@@ -27,6 +27,7 @@ com/rapidphotoflow/entity/UserEntity$UserEntityBuilder.class
 com/rapidphotoflow/controller/AuthController.class
 com/rapidphotoflow/dto/BulkDeleteRequest.class
 com/rapidphotoflow/dto/StatusCountDTO$StatusCountDTOBuilder.class
+com/rapidphotoflow/config/LocalAwsConfig.class
 com/rapidphotoflow/controller/EventController.class
 com/rapidphotoflow/dto/EventListResponse$EventListResponseBuilder.class
 com/rapidphotoflow/config/AwsConfig.class
@@ -41,6 +42,7 @@ com/rapidphotoflow/dto/StatusCountDTO.class
 com/rapidphotoflow/entity/PhotoEntity.class
 com/rapidphotoflow/controller/PhotoController.class
 com/rapidphotoflow/entity/EventLogEntity.class
+com/rapidphotoflow/config/LocalSecurityConfig.class
 com/rapidphotoflow/repository/EventLogRepository.class
 com/rapidphotoflow/service/PhotoService.class
 com/rapidphotoflow/dto/EventDTO$EventDTOBuilder.class

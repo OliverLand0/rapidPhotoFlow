@@ -70,7 +70,19 @@
       "Bash(mvn package:*)",
       "Bash(export AWS_ACCESS_KEY_ID=\"\")",
       "Bash(export AWS_SECRET_ACCESS_KEY=\"\")",
-      "Bash(export AWS_SESSION_TOKEN:*)"
+      "Bash(export AWS_SESSION_TOKEN:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(lsof:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(docker ps:*)",
+      "Bash(SPRING_PROFILES_ACTIVE=local mvn spring-boot:run:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git grep:*)",
+      "Bash(cat:*)",
+      "Bash(git rm:*)",
+      "Bash(aws secretsmanager put-secret-value:*)",
+      "Bash(mvn clean package:*)"
     ],
     "deny": [],
     "ask": []
