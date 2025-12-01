@@ -1,18 +1,12 @@
 package com.rapidphotoflow.service;
 
-import com.rapidphotoflow.domain.EventType;
 import com.rapidphotoflow.domain.Folder;
 import com.rapidphotoflow.entity.FolderEntity;
 import com.rapidphotoflow.entity.PhotoEntity;
-import com.rapidphotoflow.entity.UserEntity;
 import com.rapidphotoflow.repository.FolderRepository;
 import com.rapidphotoflow.repository.PhotoRepository;
-import com.rapidphotoflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,8 +21,7 @@ public class FolderService {
 
     private final FolderRepository folderRepository;
     private final PhotoRepository photoRepository;
-    private final UserRepository userRepository;
-    private final EventService eventService;
+    private final CurrentUserService currentUserService;
 
     @Transactional
     public Folder createFolder(String name, UUID parentId) {
@@ -269,21 +262,24 @@ public class FolderService {
                     .orElseThrow(() -> new IllegalArgumentException("Folder not found"));
         }
 
+        int movedCount = 0;
         for (UUID photoId : photoIds) {
             PhotoEntity photo = photoRepository.findById(photoId)
                     .orElse(null);
 
-            if (photo != null && userId.equals(photo.getUploadedByUserId())) {
+            // Allow move if: photo exists AND (user owns the photo OR photo has no owner)
+            if (photo != null && (userId.equals(photo.getUploadedByUserId()) || photo.getUploadedByUserId() == null)) {
                 photo.setFolderId(folderId);
                 photo.setUpdatedAt(Instant.now());
                 photoRepository.save(photo);
-
-                eventService.logEvent(photoId, EventType.PHOTO_MOVED_TO_FOLDER,
-                        "Photo moved to folder: " + (folderId != null ? folderId : "root"));
+                movedCount++;
+            } else if (photo != null) {
+                log.warn("Skipped moving photo {} - user {} doesn't own it (owner: {})",
+                        photoId, userId, photo.getUploadedByUserId());
             }
         }
 
-        log.info("Moved {} photos to folder {}", photoIds.size(), folderId);
+        log.info("Moved {} of {} photos to folder {}", movedCount, photoIds.size(), folderId);
     }
 
     private boolean isDescendant(UUID ancestorId, UUID potentialDescendantId, UUID userId) {
@@ -318,14 +314,7 @@ public class FolderService {
     }
 
     private UUID getCurrentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
-            String cognitoSub = jwt.getSubject();
-            return userRepository.findByCognitoSub(cognitoSub)
-                    .map(UserEntity::getId)
-                    .orElse(null);
-        }
-        return null;
+        return currentUserService.getCurrentUserId();
     }
 
     private Folder entityToFolder(FolderEntity entity) {

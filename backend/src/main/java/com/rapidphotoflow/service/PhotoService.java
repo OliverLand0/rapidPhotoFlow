@@ -9,9 +9,6 @@ import com.rapidphotoflow.repository.PhotoRepository;
 import com.rapidphotoflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,6 +29,7 @@ public class PhotoService {
     private final S3StorageService s3StorageService;
     private final EventService eventService;
     private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
 
     @Transactional
     public List<Photo> uploadPhotos(List<MultipartFile> files) {
@@ -80,14 +78,7 @@ public class PhotoService {
     }
 
     private UUID getCurrentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
-            String cognitoSub = jwt.getSubject();
-            return userRepository.findByCognitoSub(cognitoSub)
-                    .map(UserEntity::getId)
-                    .orElse(null);
-        }
-        return null;
+        return currentUserService.getCurrentUserId();
     }
 
     public Optional<Photo> getPhotoById(UUID id) {

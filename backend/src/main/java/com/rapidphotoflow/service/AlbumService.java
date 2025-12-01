@@ -5,16 +5,11 @@ import com.rapidphotoflow.domain.EventType;
 import com.rapidphotoflow.entity.AlbumEntity;
 import com.rapidphotoflow.entity.AlbumPhotoEntity;
 import com.rapidphotoflow.entity.PhotoEntity;
-import com.rapidphotoflow.entity.UserEntity;
 import com.rapidphotoflow.repository.AlbumPhotoRepository;
 import com.rapidphotoflow.repository.AlbumRepository;
 import com.rapidphotoflow.repository.PhotoRepository;
-import com.rapidphotoflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +25,7 @@ public class AlbumService {
     private final AlbumRepository albumRepository;
     private final AlbumPhotoRepository albumPhotoRepository;
     private final PhotoRepository photoRepository;
-    private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
     private final EventService eventService;
 
     @Transactional
@@ -263,14 +258,7 @@ public class AlbumService {
     }
 
     private UUID getCurrentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
-            String cognitoSub = jwt.getSubject();
-            return userRepository.findByCognitoSub(cognitoSub)
-                    .map(UserEntity::getId)
-                    .orElse(null);
-        }
-        return null;
+        return currentUserService.getCurrentUserId();
     }
 
     private Album entityToAlbum(AlbumEntity entity, int photoCount) {
