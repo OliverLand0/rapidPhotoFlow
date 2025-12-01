@@ -267,15 +267,12 @@ public class FolderService {
             PhotoEntity photo = photoRepository.findById(photoId)
                     .orElse(null);
 
-            // Allow move if: photo exists AND (user owns the photo OR photo has no owner)
-            if (photo != null && (userId.equals(photo.getUploadedByUserId()) || photo.getUploadedByUserId() == null)) {
+            // Allow any authenticated user to move photos since all photos are visible to everyone
+            if (photo != null) {
                 photo.setFolderId(folderId);
                 photo.setUpdatedAt(Instant.now());
                 photoRepository.save(photo);
                 movedCount++;
-            } else if (photo != null) {
-                log.warn("Skipped moving photo {} - user {} doesn't own it (owner: {})",
-                        photoId, userId, photo.getUploadedByUserId());
             }
         }
 

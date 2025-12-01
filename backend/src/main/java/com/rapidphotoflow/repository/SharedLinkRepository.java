@@ -41,4 +41,13 @@ public interface SharedLinkRepository extends JpaRepository<SharedLinkEntity, UU
     @Modifying
     @Query("UPDATE SharedLinkEntity s SET s.downloadCount = s.downloadCount + 1, s.lastAccessedAt = CURRENT_TIMESTAMP WHERE s.id = :id")
     void incrementDownloadCount(@Param("id") UUID id);
+
+    @Modifying
+    void deleteByPhotoId(UUID photoId);
+
+    @Modifying
+    void deleteByAlbumId(UUID albumId);
+
+    @Modifying
+    void deleteByFolderId(UUID folderId);
 }

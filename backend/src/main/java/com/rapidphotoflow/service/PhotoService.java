@@ -6,6 +6,7 @@ import com.rapidphotoflow.domain.PhotoStatus;
 import com.rapidphotoflow.entity.PhotoEntity;
 import com.rapidphotoflow.entity.UserEntity;
 import com.rapidphotoflow.repository.PhotoRepository;
+import com.rapidphotoflow.repository.SharedLinkRepository;
 import com.rapidphotoflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ public class PhotoService {
     private final EventService eventService;
     private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
+    private final SharedLinkRepository sharedLinkRepository;
 
     @Transactional
     public List<Photo> uploadPhotos(List<MultipartFile> files) {
@@ -226,6 +228,9 @@ public class PhotoService {
 
         String filename = entity.getFilename();
 
+        // Delete associated share links first
+        sharedLinkRepository.deleteByPhotoId(photoId);
+
         // Delete from S3
         s3StorageService.deletePhoto(photoId);
 
@@ -275,6 +280,8 @@ public class PhotoService {
 
             if (!entity.getId().equals(best.getId())) {
                 duplicates.add(entityToPhoto(entity, null));
+                // Delete associated share links first
+                sharedLinkRepository.deleteByPhotoId(entity.getId());
                 s3StorageService.deletePhoto(entity.getId());
                 eventService.logEvent(entity.getId(), EventType.DELETED,
                         "Duplicate removed: " + entity.getFilename() + " (kept " + best.getStatus() + " version)");
