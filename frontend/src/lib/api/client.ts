@@ -276,3 +276,20 @@ export const aiClient = {
   },
 };
 
+export const seedClient = {
+  async seedData(): Promise<PhotoListResponse> {
+    return fetchJson<PhotoListResponse>(`${API_BASE}/seed`, {
+      method: "POST",
+    });
+  },
+
+  async clearData(): Promise<void> {
+    const response = await fetch(`${API_BASE}/seed`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to clear data: ${response.status}`);
+    }
+  },
+};
+

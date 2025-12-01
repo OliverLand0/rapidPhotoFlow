@@ -47,7 +47,7 @@ export function PhotoFilters({
           onTagsChange={onTagsChange}
           filenames={filenames}
           tags={tags}
-          placeholder="Search..."
+          placeholder="Search by filename or tag..."
           className="flex-1 sm:max-w-md"
         />
         <div className="w-28 sm:w-40 flex-shrink-0">
