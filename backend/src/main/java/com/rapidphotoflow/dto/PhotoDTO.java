@@ -16,7 +16,11 @@ public class PhotoDTO {
     private UUID id;
     private String filename;
     private String mimeType;
+    private String originalMimeType;
     private long sizeBytes;
+    private Boolean isChatGptCompatible;
+    private Boolean wasConverted;
+    private Boolean aiTaggingEnabled;
     private PhotoStatus status;
     private String failureReason;
     private Instant uploadedAt;
@@ -29,7 +33,11 @@ public class PhotoDTO {
                 .id(photo.getId())
                 .filename(photo.getFilename())
                 .mimeType(photo.getMimeType())
+                .originalMimeType(photo.getOriginalMimeType())
                 .sizeBytes(photo.getSizeBytes())
+                .isChatGptCompatible(photo.getIsChatGptCompatible())
+                .wasConverted(photo.getWasConverted())
+                .aiTaggingEnabled(photo.getAiTaggingEnabled())
                 .status(photo.getStatus())
                 .failureReason(photo.getFailureReason())
                 .uploadedAt(photo.getUploadedAt())

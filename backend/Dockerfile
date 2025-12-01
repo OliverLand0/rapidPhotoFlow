@@ -30,8 +30,8 @@ RUN addgroup -g 1001 -S appgroup && \
 # Copy the built jar from build stage
 COPY --from=build /app/target/*.jar app.jar
 
-# Install curl for health checks
-RUN apk add --no-cache curl
+# Install curl for health checks and libheif for HEIC image support
+RUN apk add --no-cache curl libheif
 
 # Change ownership
 RUN chown -R appuser:appgroup /app

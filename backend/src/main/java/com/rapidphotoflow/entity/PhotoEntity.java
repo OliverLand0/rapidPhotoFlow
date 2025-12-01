@@ -29,8 +29,20 @@ public class PhotoEntity {
     @Column(name = "mime_type", nullable = false)
     private String mimeType;
 
+    @Column(name = "original_mime_type")
+    private String originalMimeType;
+
     @Column(name = "size_bytes", nullable = false)
     private long sizeBytes;
+
+    @Column(name = "is_chatgpt_compatible")
+    private Boolean isChatGptCompatible;
+
+    @Column(name = "was_converted")
+    private Boolean wasConverted;
+
+    @Column(name = "ai_tagging_enabled")
+    private Boolean aiTaggingEnabled;
 
     @Column(name = "content_hash")
     private String contentHash;

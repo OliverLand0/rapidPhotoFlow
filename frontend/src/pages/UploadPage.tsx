@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload, Sparkles, AlertTriangle } from "lucide-react";
+import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload, Sparkles, AlertTriangle, RefreshCw, Info } from "lucide-react";
 import { UploadDropzone } from "../features/photos/components/UploadDropzone";
 import { StatusBadge } from "../components/shared/StatusBadge";
 import { Button } from "../components/ui/button";
@@ -23,6 +23,9 @@ interface UploadingFile {
   photoId?: string;
 }
 
+// File types that are not compatible with ChatGPT API for AI tagging
+const INCOMPATIBLE_TYPES = ['image/heic', 'image/heif', 'image/tiff', 'image/bmp', 'image/x-tiff', 'image/x-bmp'];
+
 export function UploadPage() {
   const navigate = useNavigate();
   const { photos, refresh, setUploadingCount } = usePhotos();
@@ -32,6 +35,9 @@ export function UploadPage() {
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Image conversion toggle (converts HEIC, TIFF, BMP to JPEG/PNG for AI compatibility)
+  const [convertToCompatible, setConvertToCompatible] = useState(true);
 
   // Bulk upload warning state
   const [showBulkWarning, setShowBulkWarning] = useState(false);
@@ -55,17 +61,18 @@ export function UploadPage() {
   // Calculate total storage used
   const totalStorageBytes = photos.reduce((acc, p) => acc + p.sizeBytes, 0);
 
-  // Auto-tag photos when they finish processing (if enabled)
+  // Auto-tag photos when they finish processing (if enabled and photo is compatible)
   useEffect(() => {
     if (!autoTagOnUpload) return;
 
-    // Find photos that are pending auto-tag and have finished processing
+    // Find photos that are pending auto-tag, finished processing, and are AI-compatible
     const photosToTag = photos.filter(
       (p) =>
         pendingAutoTagRef.current.has(p.id) &&
         p.status === "PROCESSED" &&
         !taggedPhotosRef.current.has(p.id) &&
-        p.tags.length === 0 // Only tag if no tags yet
+        p.tags.length === 0 && // Only tag if no tags yet
+        p.aiTaggingEnabled !== false // Only tag if AI tagging is enabled (true or undefined for backwards compat)
     );
 
     // Trigger AI tagging for each
@@ -84,7 +91,7 @@ export function UploadPage() {
 
   // Perform the actual upload (separated so it can be called after warning dialog)
   const performUpload = useCallback(
-    async (files: File[], onProgress: (progress: number, speed: number) => void, enableAutoTag: boolean) => {
+    async (files: File[], onProgress: (progress: number, speed: number) => void, enableAutoTag: boolean, enableConversion: boolean = true) => {
       // Create previews for the files being uploaded
       const uploading: UploadingFile[] = files.map((file) => ({
         name: file.name,
@@ -129,16 +136,20 @@ export function UploadPage() {
           const batch = files.slice(i, i + BATCH_SIZE);
           const batchNum = Math.floor(i / BATCH_SIZE) + 1;
 
-          const { promise } = photoClient.uploadPhotos(batch, (batchProgress, speed) => {
-            // Calculate overall progress across all batches
-            const completedBatches = batchNum - 1;
-            actualProgress = Math.round(
-              ((completedBatches * 100 + batchProgress) / totalBatches)
-            );
-            currentSpeed = speed;
-            // Also update speed immediately for responsiveness
-            onProgress(visualProgress, speed);
-          });
+          const { promise } = photoClient.uploadPhotos(
+            batch,
+            (batchProgress, speed) => {
+              // Calculate overall progress across all batches
+              const completedBatches = batchNum - 1;
+              actualProgress = Math.round(
+                ((completedBatches * 100 + batchProgress) / totalBatches)
+              );
+              currentSpeed = speed;
+              // Also update speed immediately for responsiveness
+              onProgress(visualProgress, speed);
+            },
+            { convertToCompatible: enableConversion }
+          );
 
           const response = await promise;
           // Track uploaded photo IDs for auto-tagging and linking
@@ -202,30 +213,30 @@ export function UploadPage() {
       }
 
       // No warning needed, proceed with upload
-      await performUpload(files, onProgress, autoTagOnUpload);
+      await performUpload(files, onProgress, autoTagOnUpload, convertToCompatible);
     },
-    [autoTagOnUpload, performUpload]
+    [autoTagOnUpload, convertToCompatible, performUpload]
   );
 
   // Handle bulk warning dialog actions
   const handleBulkWarningProceed = useCallback(async () => {
     setShowBulkWarning(false);
     if (pendingFiles.length > 0 && pendingProgressCallback.current) {
-      await performUpload(pendingFiles, pendingProgressCallback.current, true);
+      await performUpload(pendingFiles, pendingProgressCallback.current, true, convertToCompatible);
     }
     setPendingFiles([]);
     pendingProgressCallback.current = null;
-  }, [pendingFiles, performUpload]);
+  }, [pendingFiles, performUpload, convertToCompatible]);
 
   const handleBulkWarningDisableAI = useCallback(async () => {
     setShowBulkWarning(false);
     setAutoTagOnUpload(false);
     if (pendingFiles.length > 0 && pendingProgressCallback.current) {
-      await performUpload(pendingFiles, pendingProgressCallback.current, false);
+      await performUpload(pendingFiles, pendingProgressCallback.current, false, convertToCompatible);
     }
     setPendingFiles([]);
     pendingProgressCallback.current = null;
-  }, [pendingFiles, performUpload, setAutoTagOnUpload]);
+  }, [pendingFiles, performUpload, setAutoTagOnUpload, convertToCompatible]);
 
   const handleBulkWarningCancel = useCallback(() => {
     setShowBulkWarning(false);
@@ -427,6 +438,33 @@ export function UploadPage() {
               <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded-md">
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   Note: AI tagging uses OpenAI API and incurs additional costs per image analyzed.
+                </p>
+              </div>
+            )}
+          </Card>
+
+          {/* Image Conversion Toggle */}
+          <Card className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 text-blue-500" />
+                  Convert for AI Compatibility
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Convert HEIC, TIFF, BMP files to JPEG for AI tagging
+                </p>
+              </div>
+              <Switch
+                checked={convertToCompatible}
+                onCheckedChange={setConvertToCompatible}
+              />
+            </div>
+            {!convertToCompatible && (
+              <div className="mt-3 p-2 bg-blue-500/10 border border-blue-500/20 rounded-md">
+                <p className="text-xs text-blue-600 dark:text-blue-400 flex items-start gap-1.5">
+                  <Info className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                  <span>Incompatible formats (HEIC, TIFF, BMP) will be stored as-is but AI tagging will be disabled for those files.</span>
                 </p>
               </div>
             )}

@@ -23,7 +23,11 @@ export interface Photo {
   id: string;
   filename: string;
   mimeType: string;
+  originalMimeType?: string | null;
   sizeBytes: number;
+  isChatGptCompatible?: boolean | null;
+  wasConverted?: boolean | null;
+  aiTaggingEnabled?: boolean | null;
   status: PhotoStatus;
   failureReason: string | null;
   uploadedAt: string;

@@ -55,12 +55,17 @@ export const photoClient = {
 
   uploadPhotos(
     files: File[],
-    onProgress?: (progress: number, speed: number) => void
+    onProgress?: (progress: number, speed: number) => void,
+    options?: { convertToCompatible?: boolean }
   ): { promise: Promise<PhotoListResponse>; abort: () => void } {
     const formData = new FormData();
     files.forEach((file) => {
       formData.append("files", file);
     });
+    // Add convertToCompatible parameter (defaults to true on backend)
+    if (options?.convertToCompatible !== undefined) {
+      formData.append("convertToCompatible", String(options.convertToCompatible));
+    }
 
     const xhr = new XMLHttpRequest();
     let startTime = 0;

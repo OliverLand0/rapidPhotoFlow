@@ -34,6 +34,8 @@ export function PhotoPreviewModal({
   const canApprove = photo.status === "PROCESSED" || photo.status === "REJECTED";
   const canReject = photo.status === "PROCESSED" || photo.status === "FAILED" || photo.status === "APPROVED";
   const canRetry = photo.status === "FAILED";
+  // AI tagging is only available for compatible images (aiTaggingEnabled defaults to true for backwards compat)
+  const canAutoTag = photo.aiTaggingEnabled !== false;
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -199,8 +201,8 @@ export function PhotoPreviewModal({
           }
           break;
         case "i":
-          // AI Auto-tag
-          if (!isAutoTagging) {
+          // AI Auto-tag (only if compatible)
+          if (!isAutoTagging && canAutoTag) {
             e.preventDefault();
             handleAutoTag();
           }
@@ -212,7 +214,7 @@ export function PhotoPreviewModal({
           break;
       }
     },
-    [onClose, handlePrev, handleNext, canApprove, canReject, canRetry, isLoading, isDeleting, isAutoTagging]
+    [onClose, handlePrev, handleNext, canApprove, canReject, canRetry, canAutoTag, isLoading, isDeleting, isAutoTagging]
   );
 
   // Global keyboard event listener
@@ -322,20 +324,24 @@ export function PhotoPreviewModal({
               <div className="pt-2 border-t border-border">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Tags</p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-xs"
-                    onClick={handleAutoTag}
-                    disabled={isAutoTagging}
+                  <div
+                    title={!canAutoTag ? "AI tagging unavailable: image format not compatible. Re-upload with conversion enabled." : "Generate AI tags for this photo"}
                   >
-                    {isAutoTagging ? (
-                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3 w-3 mr-1" />
-                    )}
-                    Auto-tag
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-6 px-2 text-xs ${!canAutoTag ? "opacity-50 cursor-not-allowed" : ""}`}
+                      onClick={handleAutoTag}
+                      disabled={isAutoTagging || !canAutoTag}
+                    >
+                      {isAutoTagging ? (
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3 mr-1" />
+                      )}
+                      Auto-tag
+                    </Button>
+                  </div>
                 </div>
                 <TagEditor photo={photo} onPhotoUpdate={onPhotoUpdate} />
               </div>

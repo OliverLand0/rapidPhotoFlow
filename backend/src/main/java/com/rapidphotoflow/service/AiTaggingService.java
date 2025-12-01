@@ -2,6 +2,8 @@ package com.rapidphotoflow.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rapidphotoflow.entity.PhotoEntity;
+import com.rapidphotoflow.repository.PhotoRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -22,14 +24,17 @@ public class AiTaggingService {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final String aiServiceUrl;
+    private final PhotoRepository photoRepository;
 
     public AiTaggingService(
-            @Value("${ai.service.url:http://localhost:3001}") String aiServiceUrl) {
+            @Value("${ai.service.url:http://localhost:3001}") String aiServiceUrl,
+            PhotoRepository photoRepository) {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
         this.objectMapper = new ObjectMapper();
         this.aiServiceUrl = aiServiceUrl;
+        this.photoRepository = photoRepository;
     }
 
     /**
@@ -52,10 +57,33 @@ public class AiTaggingService {
     }
 
     /**
+     * Check if AI tagging is available for a specific photo.
+     * Returns true if the photo exists and is stored in a ChatGPT-compatible format.
+     */
+    public boolean isAiTaggingAvailable(UUID photoId) {
+        return photoRepository.findById(photoId)
+                .map(photo -> Boolean.TRUE.equals(photo.getAiTaggingEnabled()) &&
+                              Boolean.TRUE.equals(photo.getIsChatGptCompatible()))
+                .orElse(false);
+    }
+
+    /**
      * Request auto-tagging for a photo from the AI service.
      * Returns the list of tags that were applied.
+     * Throws IllegalStateException if the photo is not compatible with AI tagging.
      */
     public List<String> autoTagPhoto(UUID photoId) {
+        // Check if AI tagging is enabled for this photo
+        PhotoEntity photo = photoRepository.findById(photoId)
+                .orElseThrow(() -> new IllegalArgumentException("Photo not found: " + photoId));
+
+        if (!Boolean.TRUE.equals(photo.getAiTaggingEnabled()) ||
+            !Boolean.TRUE.equals(photo.getIsChatGptCompatible())) {
+            throw new IllegalStateException(
+                    "AI tagging unavailable: image not stored in a ChatGPT-compatible format. " +
+                    "Re-upload with conversion enabled or upload a compatible format (JPEG, PNG, WebP, GIF).");
+        }
+
         try {
             String requestBody = objectMapper.writeValueAsString(
                     java.util.Map.of("photoId", photoId.toString())

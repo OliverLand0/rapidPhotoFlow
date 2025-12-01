@@ -16,7 +16,11 @@ public class Photo {
     private UUID id;
     private String filename;
     private String mimeType;
+    private String originalMimeType;
     private long sizeBytes;
+    private Boolean isChatGptCompatible;
+    private Boolean wasConverted;
+    private Boolean aiTaggingEnabled;
     private byte[] content;
     private String contentHash;
     private PhotoStatus status;
