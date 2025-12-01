@@ -52,13 +52,9 @@ public class SharedLinkService {
             throw new IllegalStateException("User not authenticated");
         }
 
-        // Verify photo exists and belongs to user
+        // Verify photo exists (any authenticated user can share any photo)
         PhotoEntity photo = photoRepository.findById(photoId)
                 .orElseThrow(() -> new IllegalArgumentException("Photo not found"));
-
-        if (!userId.equals(photo.getUploadedByUserId())) {
-            throw new IllegalArgumentException("Photo not found");
-        }
 
         // Generate unique token
         String token = generateUniqueToken();
@@ -150,15 +146,9 @@ public class SharedLinkService {
             throw new IllegalStateException("User not authenticated");
         }
 
-        // Verify photo exists and belongs to user
+        // Verify photo exists (any authenticated user can share any photo)
         PhotoEntity photo = photoRepository.findById(photoId)
                 .orElseThrow(() -> new IllegalArgumentException("Photo not found"));
-
-        log.info("Photo found: uploadedByUserId={}", photo.getUploadedByUserId());
-        if (!userId.equals(photo.getUploadedByUserId())) {
-            log.error("User ID mismatch: currentUserId={}, photoUploadedBy={}", userId, photo.getUploadedByUserId());
-            throw new IllegalArgumentException("Photo not found");
-        }
 
         // Generate unique token
         String token = generateUniqueToken();
@@ -512,9 +502,9 @@ public class SharedLinkService {
             return Collections.emptyList();
         }
 
-        // Verify photo belongs to user
+        // Get photo (any authenticated user can view shares for any photo)
         PhotoEntity photo = photoRepository.findById(photoId).orElse(null);
-        if (photo == null || !userId.equals(photo.getUploadedByUserId())) {
+        if (photo == null) {
             return Collections.emptyList();
         }
 
