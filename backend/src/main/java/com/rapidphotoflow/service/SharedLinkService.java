@@ -2,8 +2,12 @@ package com.rapidphotoflow.service;
 
 import com.rapidphotoflow.domain.EventType;
 import com.rapidphotoflow.domain.SharedLink;
+import com.rapidphotoflow.entity.AlbumEntity;
+import com.rapidphotoflow.entity.FolderEntity;
 import com.rapidphotoflow.entity.PhotoEntity;
 import com.rapidphotoflow.entity.SharedLinkEntity;
+import com.rapidphotoflow.repository.AlbumRepository;
+import com.rapidphotoflow.repository.FolderRepository;
 import com.rapidphotoflow.repository.PhotoRepository;
 import com.rapidphotoflow.repository.SharedLinkRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +30,8 @@ public class SharedLinkService {
 
     private final SharedLinkRepository sharedLinkRepository;
     private final PhotoRepository photoRepository;
+    private final AlbumRepository albumRepository;
+    private final FolderRepository folderRepository;
     private final CurrentUserService currentUserService;
     private final TokenService tokenService;
     private final EventService eventService;
@@ -68,7 +74,67 @@ public class SharedLinkService {
     }
 
     /**
-     * Create a share link with custom settings
+     * Create a share link for an album
+     */
+    @Transactional
+    public SharedLink createAlbumShare(UUID albumId) {
+        UUID userId = getCurrentUserId();
+        if (userId == null) {
+            throw new IllegalStateException("User not authenticated");
+        }
+
+        // Verify album exists and belongs to user
+        AlbumEntity album = albumRepository.findByIdAndUserId(albumId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Album not found"));
+
+        // Generate unique token
+        String token = generateUniqueToken();
+
+        SharedLink sharedLink = SharedLink.createForAlbum(albumId, userId, token);
+
+        SharedLinkEntity entity = domainToEntity(sharedLink);
+        sharedLinkRepository.save(entity);
+
+        eventService.logEvent(albumId, EventType.SHARED_LINK_CREATED,
+                "Share link created for album: " + token);
+
+        log.info("Share link created for album {} by user {}: {}", albumId, userId, token);
+
+        return entityToDomain(entity, album.getName());
+    }
+
+    /**
+     * Create a share link for a folder
+     */
+    @Transactional
+    public SharedLink createFolderShare(UUID folderId) {
+        UUID userId = getCurrentUserId();
+        if (userId == null) {
+            throw new IllegalStateException("User not authenticated");
+        }
+
+        // Verify folder exists and belongs to user
+        FolderEntity folder = folderRepository.findByIdAndUserId(folderId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Folder not found"));
+
+        // Generate unique token
+        String token = generateUniqueToken();
+
+        SharedLink sharedLink = SharedLink.createForFolder(folderId, userId, token);
+
+        SharedLinkEntity entity = domainToEntity(sharedLink);
+        sharedLinkRepository.save(entity);
+
+        eventService.logEvent(folderId, EventType.SHARED_LINK_CREATED,
+                "Share link created for folder: " + token);
+
+        log.info("Share link created for folder {} by user {}: {}", folderId, userId, token);
+
+        return entityToDomain(entity, folder.getName());
+    }
+
+    /**
+     * Create a share link with custom settings for photo
      */
     @Transactional
     public SharedLink createShareWithSettings(UUID photoId, Boolean downloadAllowed,
@@ -94,23 +160,12 @@ public class SharedLinkService {
         SharedLink sharedLink = SharedLink.createForPhoto(photoId, userId, token);
 
         // Apply settings
-        if (downloadAllowed != null) {
-            sharedLink.setDownloadAllowed(downloadAllowed);
-        }
-        if (downloadOriginal != null) {
-            sharedLink.setDownloadOriginal(downloadOriginal);
-        }
-        sharedLink.setMaxViews(maxViews);
-        if (requireEmail != null) {
-            sharedLink.setRequireEmail(requireEmail);
-        }
-        sharedLink.setExpiresAt(expiresAt);
+        applySettings(sharedLink, downloadAllowed, downloadOriginal, maxViews, requireEmail, expiresAt);
 
         SharedLinkEntity entity = domainToEntity(sharedLink);
 
-        // Handle password (would need PasswordService for proper hashing in production)
+        // Handle password
         if (password != null && !password.isEmpty()) {
-            // For MVP, store hashed - in production use BCrypt
             entity.setPasswordHash(hashPassword(password));
         }
 
@@ -122,6 +177,106 @@ public class SharedLinkService {
         log.info("Share link created for photo {} with settings by user {}: {}", photoId, userId, token);
 
         return entityToDomain(entity, photo.getFilename());
+    }
+
+    /**
+     * Create a share link with custom settings for album
+     */
+    @Transactional
+    public SharedLink createAlbumShareWithSettings(UUID albumId, Boolean downloadAllowed,
+                                                    Boolean downloadOriginal, Integer maxViews,
+                                                    Boolean requireEmail, Instant expiresAt,
+                                                    String password) {
+        UUID userId = getCurrentUserId();
+        if (userId == null) {
+            throw new IllegalStateException("User not authenticated");
+        }
+
+        // Verify album exists and belongs to user
+        AlbumEntity album = albumRepository.findByIdAndUserId(albumId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Album not found"));
+
+        // Generate unique token
+        String token = generateUniqueToken();
+
+        SharedLink sharedLink = SharedLink.createForAlbum(albumId, userId, token);
+
+        // Apply settings
+        applySettings(sharedLink, downloadAllowed, downloadOriginal, maxViews, requireEmail, expiresAt);
+
+        SharedLinkEntity entity = domainToEntity(sharedLink);
+
+        // Handle password
+        if (password != null && !password.isEmpty()) {
+            entity.setPasswordHash(hashPassword(password));
+        }
+
+        sharedLinkRepository.save(entity);
+
+        eventService.logEvent(albumId, EventType.SHARED_LINK_CREATED,
+                "Share link created for album with custom settings: " + token);
+
+        log.info("Share link created for album {} with settings by user {}: {}", albumId, userId, token);
+
+        return entityToDomain(entity, album.getName());
+    }
+
+    /**
+     * Create a share link with custom settings for folder
+     */
+    @Transactional
+    public SharedLink createFolderShareWithSettings(UUID folderId, Boolean downloadAllowed,
+                                                     Boolean downloadOriginal, Integer maxViews,
+                                                     Boolean requireEmail, Instant expiresAt,
+                                                     String password) {
+        UUID userId = getCurrentUserId();
+        if (userId == null) {
+            throw new IllegalStateException("User not authenticated");
+        }
+
+        // Verify folder exists and belongs to user
+        FolderEntity folder = folderRepository.findByIdAndUserId(folderId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Folder not found"));
+
+        // Generate unique token
+        String token = generateUniqueToken();
+
+        SharedLink sharedLink = SharedLink.createForFolder(folderId, userId, token);
+
+        // Apply settings
+        applySettings(sharedLink, downloadAllowed, downloadOriginal, maxViews, requireEmail, expiresAt);
+
+        SharedLinkEntity entity = domainToEntity(sharedLink);
+
+        // Handle password
+        if (password != null && !password.isEmpty()) {
+            entity.setPasswordHash(hashPassword(password));
+        }
+
+        sharedLinkRepository.save(entity);
+
+        eventService.logEvent(folderId, EventType.SHARED_LINK_CREATED,
+                "Share link created for folder with custom settings: " + token);
+
+        log.info("Share link created for folder {} with settings by user {}: {}", folderId, userId, token);
+
+        return entityToDomain(entity, folder.getName());
+    }
+
+    private void applySettings(SharedLink sharedLink, Boolean downloadAllowed,
+                                Boolean downloadOriginal, Integer maxViews,
+                                Boolean requireEmail, Instant expiresAt) {
+        if (downloadAllowed != null) {
+            sharedLink.setDownloadAllowed(downloadAllowed);
+        }
+        if (downloadOriginal != null) {
+            sharedLink.setDownloadOriginal(downloadOriginal);
+        }
+        sharedLink.setMaxViews(maxViews);
+        if (requireEmail != null) {
+            sharedLink.setRequireEmail(requireEmail);
+        }
+        sharedLink.setExpiresAt(expiresAt);
     }
 
     /**
@@ -355,6 +510,22 @@ public class SharedLinkService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Get the photo count for a shared album
+     */
+    public int getAlbumPhotoCount(UUID albumId) {
+        return albumRepository.findById(albumId)
+                .map(album -> album.getPhotoIds() != null ? album.getPhotoIds().size() : 0)
+                .orElse(0);
+    }
+
+    /**
+     * Get the photo count for a shared folder
+     */
+    public int getFolderPhotoCount(UUID folderId) {
+        return photoRepository.countByFolderId(folderId);
+    }
+
     private String generateUniqueToken() {
         String token;
         int attempts = 0;
@@ -378,7 +549,16 @@ public class SharedLinkService {
                     .map(PhotoEntity::getFilename)
                     .orElse("Unknown Photo");
         }
-        // TODO: Add album and folder name lookups
+        if (entity.getAlbumId() != null) {
+            return albumRepository.findById(entity.getAlbumId())
+                    .map(AlbumEntity::getName)
+                    .orElse("Unknown Album");
+        }
+        if (entity.getFolderId() != null) {
+            return folderRepository.findById(entity.getFolderId())
+                    .map(FolderEntity::getName)
+                    .orElse("Unknown Folder");
+        }
         return "Unknown";
     }
 

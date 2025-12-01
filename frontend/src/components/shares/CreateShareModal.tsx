@@ -1,12 +1,21 @@
 import { useState } from "react";
-import { X, Share2, Copy, Check, Link, ChevronDown, ChevronUp, Lock, Clock, Eye, Download } from "lucide-react";
+import { X, Share2, Copy, Check, Link, ChevronDown, ChevronUp, Lock, Clock, Eye, Download, Image, FolderOpen, Images } from "lucide-react";
 import { shareClient } from "../../lib/api/client";
-import type { Photo, SharedLink, CreateShareRequest } from "../../lib/api/types";
+import type { Photo, Album, Folder, SharedLink, CreateShareRequest, ShareType } from "../../lib/api/types";
+
+// Generic target type for sharing
+type ShareTarget =
+  | { type: "PHOTO"; photo: Photo }
+  | { type: "ALBUM"; album: Album }
+  | { type: "FOLDER"; folder: Folder };
 
 interface CreateShareModalProps {
   isOpen: boolean;
   onClose: () => void;
-  photo: Photo;
+  // Support different target types
+  photo?: Photo;
+  album?: Album;
+  folder?: Folder;
 }
 
 type ExpirationOption = "never" | "1h" | "24h" | "7d" | "30d";
@@ -19,7 +28,7 @@ const expirationOptions: { value: ExpirationOption; label: string }[] = [
   { value: "30d", label: "30 days" },
 ];
 
-export function CreateShareModal({ isOpen, onClose, photo }: CreateShareModalProps) {
+export function CreateShareModal({ isOpen, onClose, photo, album, folder }: CreateShareModalProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdShare, setCreatedShare] = useState<SharedLink | null>(null);
@@ -32,16 +41,112 @@ export function CreateShareModal({ isOpen, onClose, photo }: CreateShareModalPro
   const [downloadAllowed, setDownloadAllowed] = useState(true);
   const [maxViews, setMaxViews] = useState<string>("");
 
+  // Determine target
+  const getTarget = (): ShareTarget | null => {
+    if (photo) return { type: "PHOTO", photo };
+    if (album) return { type: "ALBUM", album };
+    if (folder) return { type: "FOLDER", folder };
+    return null;
+  };
+
+  const target = getTarget();
+
+  const getTargetName = (): string => {
+    if (!target) return "";
+    switch (target.type) {
+      case "PHOTO":
+        return target.photo.filename;
+      case "ALBUM":
+        return target.album.name;
+      case "FOLDER":
+        return target.folder.name;
+    }
+  };
+
+  const getTargetDescription = (): string => {
+    if (!target) return "";
+    switch (target.type) {
+      case "PHOTO":
+        return `${(target.photo.sizeBytes / 1024 / 1024).toFixed(2)} MB`;
+      case "ALBUM":
+        return `${target.album.photoCount} photos`;
+      case "FOLDER":
+        return `${target.folder.photoCount} photos`;
+    }
+  };
+
+  const getTargetIcon = () => {
+    if (!target) return Image;
+    switch (target.type) {
+      case "PHOTO":
+        return Image;
+      case "ALBUM":
+        return Images;
+      case "FOLDER":
+        return FolderOpen;
+    }
+  };
+
+  const getTitle = (): string => {
+    if (!target) return "Share";
+    switch (target.type) {
+      case "PHOTO":
+        return "Share Photo";
+      case "ALBUM":
+        return "Share Album";
+      case "FOLDER":
+        return "Share Folder";
+    }
+  };
+
+  const getShareDescription = (): string => {
+    if (!target) return "";
+    switch (target.type) {
+      case "PHOTO":
+        return "Create a shareable link for this photo. Anyone with the link can view the photo.";
+      case "ALBUM":
+        return "Create a shareable link for this album. Anyone with the link can view all photos in the album.";
+      case "FOLDER":
+        return "Create a shareable link for this folder. Anyone with the link can view all photos in the folder.";
+    }
+  };
+
+  const getThumbnailUrl = (): string | null => {
+    if (!target) return null;
+    switch (target.type) {
+      case "PHOTO":
+        return `/api/photos/${target.photo.id}/content`;
+      case "ALBUM":
+        return target.album.coverPhotoUrl;
+      case "FOLDER":
+        return null; // Folders don't have thumbnails
+    }
+  };
+
   const handleCreate = async () => {
+    if (!target) return;
+
     setIsCreating(true);
     setError(null);
 
     try {
       const request: CreateShareRequest = {
-        photoId: photo.id,
         expiresIn,
         downloadAllowed,
       };
+
+      // Set the target ID based on type
+      switch (target.type) {
+        case "PHOTO":
+          request.photoId = target.photo.id;
+          break;
+        case "ALBUM":
+          request.albumId = target.album.id;
+          break;
+        case "FOLDER":
+          request.folderId = target.folder.id;
+          break;
+      }
 
       // Only include password if set
       if (password.trim()) {
@@ -96,18 +201,10 @@ export function CreateShareModal({ isOpen, onClose, photo }: CreateShareModalPro
     onClose();
   };
 
-  const formatExpiration = (option: ExpirationOption): string => {
-    const labels: Record<ExpirationOption, string> = {
-      never: "Never",
-      "1h": "1 hour",
-      "24h": "24 hours",
-      "7d": "7 days",
-      "30d": "30 days",
-    };
-    return labels[option];
-  };
+  if (!isOpen || !target) return null;
 
-  if (!isOpen) return null;
+  const TargetIcon = getTargetIcon();
+  const thumbnailUrl = getThumbnailUrl();
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center">
@@ -123,7 +220,7 @@ export function CreateShareModal({ isOpen, onClose, photo }: CreateShareModalPro
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Share2 className="h-5 w-5" />
-            <h2 className="text-lg font-semibold">Share Photo</h2>
+            <h2 className="text-lg font-semibold">{getTitle()}</h2>
           </div>
           <button
             onClick={handleClose}
@@ -133,20 +230,24 @@ export function CreateShareModal({ isOpen, onClose, photo }: CreateShareModalPro
           </button>
         </div>
 
-        {/* Photo preview */}
+        {/* Target preview */}
         <div className="mb-4 p-3 bg-muted/50 rounded-lg">
           <div className="flex items-center gap-3">
-            <div className="w-16 h-16 rounded overflow-hidden bg-muted flex-shrink-0">
-              <img
-                src={`/api/photos/${photo.id}/content`}
-                alt={photo.filename}
-                className="w-full h-full object-cover"
-              />
+            <div className="w-16 h-16 rounded overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
+              {thumbnailUrl ? (
+                <img
+                  src={thumbnailUrl}
+                  alt={getTargetName()}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <TargetIcon className="h-8 w-8 text-muted-foreground" />
+              )}
             </div>
             <div className="overflow-hidden">
-              <p className="font-medium truncate">{photo.filename}</p>
+              <p className="font-medium truncate">{getTargetName()}</p>
               <p className="text-sm text-muted-foreground">
-                {(photo.sizeBytes / 1024 / 1024).toFixed(2)} MB
+                {getTargetDescription()}
               </p>
             </div>
           </div>
@@ -156,7 +257,7 @@ export function CreateShareModal({ isOpen, onClose, photo }: CreateShareModalPro
           // Create share view
           <>
             <p className="text-sm text-muted-foreground mb-4">
-              Create a shareable link for this photo. Anyone with the link can view the photo.
+              {getShareDescription()}
             </p>
 
             {/* Advanced settings toggle */}
@@ -209,7 +310,7 @@ export function CreateShareModal({ isOpen, onClose, photo }: CreateShareModalPro
                     className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Viewers will need to enter this password to see the photo
+                    Viewers will need to enter this password to access the content
                   </p>
                 </div>
 
@@ -246,7 +347,7 @@ export function CreateShareModal({ isOpen, onClose, photo }: CreateShareModalPro
                   </label>
                   <p className="text-xs text-muted-foreground mt-1 ml-6">
                     {downloadAllowed
-                      ? "Viewers can download the photo"
+                      ? "Viewers can download the content"
                       : "Viewers can only view, not download"}
                   </p>
                 </div>

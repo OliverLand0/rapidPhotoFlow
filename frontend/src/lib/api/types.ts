@@ -189,7 +189,11 @@ export interface SharedLinkListResponse {
 }
 
 export interface CreateShareRequest {
-  photoId: string;
+  // Target - exactly one should be set
+  photoId?: string;
+  albumId?: string;
+  folderId?: string;
+  // Optional settings
   password?: string;
   downloadAllowed?: boolean;
   downloadOriginal?: boolean;

@@ -1,6 +1,5 @@
 package com.rapidphotoflow.dto;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,8 +13,10 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateShareRequest {
-    @NotNull(message = "Photo ID is required")
+    // Target - exactly one should be set
     private UUID photoId;
+    private UUID albumId;
+    private UUID folderId;
 
     // Optional settings (all can be null for defaults)
     private String password;
@@ -43,5 +44,16 @@ public class CreateShareRequest {
             case "30d" -> Instant.now().plusSeconds(2592000);
             default -> null;
         };
+    }
+
+    public boolean hasTarget() {
+        return photoId != null || albumId != null || folderId != null;
+    }
+
+    public String getTargetType() {
+        if (photoId != null) return "PHOTO";
+        if (albumId != null) return "ALBUM";
+        if (folderId != null) return "FOLDER";
+        return null;
     }
 }

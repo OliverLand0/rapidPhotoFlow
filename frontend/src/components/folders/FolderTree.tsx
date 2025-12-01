@@ -1,16 +1,18 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Folder as FolderIcon, FolderOpen, Plus, Images } from "lucide-react";
+import { ChevronRight, ChevronDown, Folder as FolderIcon, FolderOpen, Plus, Images, Share2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import type { Folder } from "../../lib/api/types";
 import { useFolders } from "../../lib/FoldersContext";
+import { CreateShareModal } from "../shares/CreateShareModal";
 
 interface FolderTreeItemProps {
   folder: Folder;
   level: number;
   onCreateFolder?: (parentId: string) => void;
+  onShare?: (folder: Folder) => void;
 }
 
-function FolderTreeItem({ folder, level, onCreateFolder }: FolderTreeItemProps) {
+function FolderTreeItem({ folder, level, onCreateFolder, onShare }: FolderTreeItemProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { currentFolderId, setCurrentFolder } = useFolders();
   const isSelected = currentFolderId === folder.id;
@@ -66,6 +68,23 @@ function FolderTreeItem({ folder, level, onCreateFolder }: FolderTreeItemProps) 
           </span>
         )}
 
+        {/* Share button (shown on hover) */}
+        {onShare && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onShare(folder);
+            }}
+            className={cn(
+              "p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity",
+              isSelected ? "hover:bg-primary-foreground/20" : "hover:bg-muted-foreground/20"
+            )}
+            title="Share folder"
+          >
+            <Share2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+
         {/* Create subfolder button (shown on hover) */}
         {onCreateFolder && (
           <button
@@ -93,6 +112,7 @@ function FolderTreeItem({ folder, level, onCreateFolder }: FolderTreeItemProps) 
               folder={child}
               level={level + 1}
               onCreateFolder={onCreateFolder}
+              onShare={onShare}
             />
           ))}
         </div>
@@ -107,6 +127,11 @@ interface FolderTreeProps {
 
 export function FolderTree({ onCreateFolder }: FolderTreeProps) {
   const { folders, currentFolderId, setCurrentFolder, loading } = useFolders();
+  const [shareFolder, setShareFolder] = useState<Folder | null>(null);
+
+  const handleShare = (folder: Folder) => {
+    setShareFolder(folder);
+  };
 
   return (
     <div className="py-2">
@@ -154,10 +179,18 @@ export function FolderTree({ onCreateFolder }: FolderTreeProps) {
               folder={folder}
               level={0}
               onCreateFolder={onCreateFolder}
+              onShare={handleShare}
             />
           ))}
         </div>
       )}
+
+      {/* Share Folder Modal */}
+      <CreateShareModal
+        isOpen={shareFolder !== null}
+        onClose={() => setShareFolder(null)}
+        folder={shareFolder ?? undefined}
+      />
     </div>
   );
 }
