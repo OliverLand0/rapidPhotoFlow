@@ -103,6 +103,14 @@ export function Layout() {
           <span>Build {__BUILD_VERSION__}</span>
           <span className="mx-2">|</span>
           <span>Last deployed: {new Date(__BUILD_DATE__).toLocaleString()}</span>
+          {__GIT_BRANCH__ && __GIT_BRANCH__ !== 'main' && __GIT_BRANCH__ !== 'master' && (
+            <>
+              <span className="mx-2">|</span>
+              <span className="text-amber-600 dark:text-amber-400 font-medium">
+                Branch: {__GIT_BRANCH__}
+              </span>
+            </>
+          )}
         </div>
       </footer>
     </div>
