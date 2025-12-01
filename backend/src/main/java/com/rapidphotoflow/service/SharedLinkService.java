@@ -345,33 +345,32 @@ public class SharedLinkService {
         SharedLinkEntity entity = sharedLinkRepository.findByIdAndCreatedByUserId(shareId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Share link not found"));
 
-        if (downloadAllowed != null) {
-            entity.setDownloadAllowed(downloadAllowed);
-        }
-        if (downloadOriginal != null) {
-            entity.setDownloadOriginal(downloadOriginal);
-        }
-        entity.setMaxViews(maxViews);
-        if (requireEmail != null) {
-            entity.setRequireEmail(requireEmail);
-        }
-        entity.setExpiresAt(expiresAt);
-        if (isActive != null) {
-            entity.setIsActive(isActive);
-        }
-
-        entity.setUpdatedAt(Instant.now());
-        sharedLinkRepository.save(entity);
-
-        UUID targetId = entity.getPhotoId() != null ? entity.getPhotoId() :
-                        entity.getAlbumId() != null ? entity.getAlbumId() : entity.getFolderId();
-        eventService.logEvent(targetId, EventType.SHARED_LINK_UPDATED,
-                "Share link updated: " + entity.getToken());
-
-        log.info("Share link updated: {}", entity.getToken());
-
+        // Convert to domain model
         String targetName = getTargetName(entity);
-        return entityToDomain(entity, targetName);
+        SharedLink sharedLink = entityToDomain(entity, targetName);
+
+        // Use domain methods to update settings
+        sharedLink.updateSettings(downloadAllowed, downloadOriginal, maxViews, requireEmail, expiresAt);
+
+        // Handle activation/deactivation through domain methods
+        if (isActive != null) {
+            if (isActive) {
+                sharedLink.activate();
+            } else {
+                sharedLink.deactivate();
+            }
+        }
+
+        // Convert back to entity and save
+        SharedLinkEntity updatedEntity = domainToEntity(sharedLink);
+        sharedLinkRepository.save(updatedEntity);
+
+        eventService.logEvent(sharedLink.getTargetId(), EventType.SHARED_LINK_UPDATED,
+                "Share link updated: " + sharedLink.getToken());
+
+        log.info("Share link updated: {}", sharedLink.getToken());
+
+        return sharedLink;
     }
 
     /**
@@ -387,16 +386,19 @@ public class SharedLinkService {
         SharedLinkEntity entity = sharedLinkRepository.findByIdAndCreatedByUserId(shareId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Share link not found"));
 
-        entity.setIsActive(false);
-        entity.setUpdatedAt(Instant.now());
-        sharedLinkRepository.save(entity);
+        // Convert to domain model and use domain method
+        String targetName = getTargetName(entity);
+        SharedLink sharedLink = entityToDomain(entity, targetName);
+        sharedLink.deactivate();
 
-        UUID targetId = entity.getPhotoId() != null ? entity.getPhotoId() :
-                        entity.getAlbumId() != null ? entity.getAlbumId() : entity.getFolderId();
-        eventService.logEvent(targetId, EventType.SHARED_LINK_DEACTIVATED,
-                "Share link deactivated: " + entity.getToken());
+        // Convert back and save
+        SharedLinkEntity updatedEntity = domainToEntity(sharedLink);
+        sharedLinkRepository.save(updatedEntity);
 
-        log.info("Share link deactivated: {}", entity.getToken());
+        eventService.logEvent(sharedLink.getTargetId(), EventType.SHARED_LINK_DEACTIVATED,
+                "Share link deactivated: " + sharedLink.getToken());
+
+        log.info("Share link deactivated: {}", sharedLink.getToken());
     }
 
     /**
@@ -412,11 +414,16 @@ public class SharedLinkService {
         SharedLinkEntity entity = sharedLinkRepository.findByIdAndCreatedByUserId(shareId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Share link not found"));
 
-        entity.setIsActive(true);
-        entity.setUpdatedAt(Instant.now());
-        sharedLinkRepository.save(entity);
+        // Convert to domain model and use domain method
+        String targetName = getTargetName(entity);
+        SharedLink sharedLink = entityToDomain(entity, targetName);
+        sharedLink.activate();
 
-        log.info("Share link reactivated: {}", entity.getToken());
+        // Convert back and save
+        SharedLinkEntity updatedEntity = domainToEntity(sharedLink);
+        sharedLinkRepository.save(updatedEntity);
+
+        log.info("Share link reactivated: {}", sharedLink.getToken());
     }
 
     /**
