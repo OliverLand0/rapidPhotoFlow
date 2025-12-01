@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Component, type ReactNode } from "react";
 import { ThemeProvider } from "./lib/ThemeContext";
 import { PhotosProvider } from "./lib/PhotosContext";
+import { FoldersProvider } from "./lib/FoldersContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./components/ui/toast";
 import { Layout } from "./components/Layout";
@@ -50,8 +51,9 @@ function App() {
       <ToastProvider>
         <AuthProvider>
           <PhotosProvider>
-            <BrowserRouter>
-              <Routes>
+            <FoldersProvider>
+              <BrowserRouter>
+                <Routes>
                 {/* Public auth routes (no layout) */}
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
@@ -73,7 +75,8 @@ function App() {
                   <Route path="profile" element={<ProfilePage />} />
                 </Route>
               </Routes>
-            </BrowserRouter>
+              </BrowserRouter>
+            </FoldersProvider>
           </PhotosProvider>
         </AuthProvider>
       </ToastProvider>

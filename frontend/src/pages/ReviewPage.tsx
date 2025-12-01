@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ImageOff, Search, X, Copy, Loader2, Keyboard } from "lucide-react";
 import { usePhotos } from "../lib/PhotosContext";
+import { useFolders } from "../lib/FoldersContext";
+import { FolderTree, FolderBreadcrumbs, CreateFolderModal, MoveToFolderModal } from "../components/folders";
 import { usePhotoFilters, type StatusFilter } from "../features/photos/hooks/usePhotoFilters";
 import { usePhotoSelection } from "../features/photos/hooks/usePhotoSelection";
 import { usePhotoActions } from "../features/photos/hooks/usePhotoActions";
@@ -47,9 +49,14 @@ export function ReviewPage() {
   const [isRemovingDuplicates, setIsRemovingDuplicates] = useState(false);
   const [focusedPhotoId, setFocusedPhotoId] = useState<string | null>(null);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+  const [showMoveToFolderModal, setShowMoveToFolderModal] = useState(false);
   const highlightedPhotoId = searchParams.get("photoId");
   const { toast } = useToast();
   const photoGridRef = useRef<HTMLDivElement>(null);
+
+  // Folder state
+  const { currentFolderId } = useFolders();
 
   // Sync URL status param with state when URL changes
   useEffect(() => {
@@ -500,10 +507,17 @@ export function ReviewPage() {
         </div>
       </div>
 
-      {/* Two-column layout */}
+      {/* Three-column layout */}
       <div className="flex gap-6 h-[calc(100vh-320px)] md:h-[calc(100vh-280px)]">
+        {/* Folder Tree Sidebar */}
+        <div className="w-64 border-r bg-muted/30 hidden md:block overflow-y-auto">
+          <FolderTree onCreateFolder={() => setShowCreateFolderModal(true)} />
+        </div>
+
         {/* Photo Grid */}
         <div className="flex-1 overflow-y-auto -mx-4 px-4 md:mx-0 md:px-0" ref={photoGridRef}>
+          {/* Folder breadcrumbs */}
+          <FolderBreadcrumbs />
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -561,6 +575,7 @@ export function ReviewPage() {
         selectedPhotos={filteredPhotos.filter((p) => selectedIds.has(p.id))}
         onClearSelection={clearSelection}
         onActionComplete={handleBulkActionComplete}
+        onMoveToFolder={() => setShowMoveToFolderModal(true)}
       />
 
       {/* Photo Preview Modal */}
@@ -579,6 +594,27 @@ export function ReviewPage() {
       <KeyboardShortcutsModal
         isOpen={showShortcutsModal}
         onClose={() => setShowShortcutsModal(false)}
+      />
+
+      {/* Create Folder Modal */}
+      <CreateFolderModal
+        isOpen={showCreateFolderModal}
+        onClose={() => setShowCreateFolderModal(false)}
+        parentId={currentFolderId}
+      />
+
+      {/* Move to Folder Modal */}
+      <MoveToFolderModal
+        isOpen={showMoveToFolderModal}
+        onClose={() => setShowMoveToFolderModal(false)}
+        photoIds={Array.from(selectedIds)}
+        onMoved={() => {
+          clearSelection();
+          toast({
+            type: "success",
+            title: "Photos moved successfully",
+          });
+        }}
       />
     </div>
   );

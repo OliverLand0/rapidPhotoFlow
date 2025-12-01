@@ -6,6 +6,13 @@ import type {
   PhotoStatus,
   StatusCount,
   BulkActionResponse,
+  Folder,
+  FolderListResponse,
+  CreateFolderRequest,
+  Album,
+  AlbumListResponse,
+  CreateAlbumRequest,
+  UpdateAlbumRequest,
 } from "./types";
 import { getAccessToken } from "../auth/cognitoConfig";
 
@@ -290,6 +297,149 @@ export const seedClient = {
     if (!response.ok) {
       throw new Error(`Failed to clear data: ${response.status}`);
     }
+  },
+};
+
+export const folderClient = {
+  async getFolderTree(): Promise<FolderListResponse> {
+    return fetchJson<FolderListResponse>(`${API_BASE}/folders`);
+  },
+
+  async getFolderById(id: string): Promise<Folder> {
+    return fetchJson<Folder>(`${API_BASE}/folders/${id}`);
+  },
+
+  async getFolderPath(id: string): Promise<FolderListResponse> {
+    return fetchJson<FolderListResponse>(`${API_BASE}/folders/${id}/path`);
+  },
+
+  async createFolder(request: CreateFolderRequest): Promise<Folder> {
+    return fetchJson<Folder>(`${API_BASE}/folders`, {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async renameFolder(id: string, name: string): Promise<Folder> {
+    return fetchJson<Folder>(`${API_BASE}/folders/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  async moveFolder(id: string, parentId: string | null): Promise<Folder> {
+    return fetchJson<Folder>(`${API_BASE}/folders/${id}/move`, {
+      method: "PUT",
+      body: JSON.stringify({ parentId }),
+    });
+  },
+
+  async deleteFolder(id: string, deleteContents: boolean = false): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(
+      `${API_BASE}/folders/${id}?deleteContents=${deleteContents}`,
+      {
+        method: "DELETE",
+        headers: authHeaders,
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to delete folder: ${response.status}`);
+    }
+  },
+
+  async movePhotosToFolder(folderId: string | null, photoIds: string[]): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const url = folderId
+      ? `${API_BASE}/folders/${folderId}/photos`
+      : `${API_BASE}/folders/root/photos`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify({ photoIds }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to move photos: ${response.status}`);
+    }
+  },
+};
+
+export const albumClient = {
+  async getAlbums(): Promise<AlbumListResponse> {
+    return fetchJson<AlbumListResponse>(`${API_BASE}/albums`);
+  },
+
+  async getAlbumById(id: string): Promise<Album> {
+    return fetchJson<Album>(`${API_BASE}/albums/${id}`);
+  },
+
+  async getPhotosInAlbum(id: string): Promise<PhotoListResponse> {
+    return fetchJson<PhotoListResponse>(`${API_BASE}/albums/${id}/photos`);
+  },
+
+  async createAlbum(request: CreateAlbumRequest): Promise<Album> {
+    return fetchJson<Album>(`${API_BASE}/albums`, {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async updateAlbum(id: string, request: UpdateAlbumRequest): Promise<Album> {
+    return fetchJson<Album>(`${API_BASE}/albums/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async deleteAlbum(id: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/albums/${id}`, {
+      method: "DELETE",
+      headers: authHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete album: ${response.status}`);
+    }
+  },
+
+  async addPhotosToAlbum(id: string, photoIds: string[]): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/albums/${id}/photos`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify({ photoIds }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to add photos to album: ${response.status}`);
+    }
+  },
+
+  async removePhotosFromAlbum(id: string, photoIds: string[]): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/albums/${id}/photos`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify({ photoIds }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to remove photos from album: ${response.status}`);
+    }
+  },
+
+  async setCoverPhoto(albumId: string, photoId: string): Promise<Album> {
+    return fetchJson<Album>(`${API_BASE}/albums/${albumId}/cover`, {
+      method: "PUT",
+      body: JSON.stringify({ photoId }),
+    });
   },
 };
 

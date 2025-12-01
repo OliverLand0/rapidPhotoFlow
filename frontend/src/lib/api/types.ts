@@ -17,7 +17,17 @@ export type EventType =
   | "RETRY_REQUESTED"
   | "TAG_ADDED"
   | "TAG_REMOVED"
-  | "AUTO_TAGGED";
+  | "AUTO_TAGGED"
+  | "FOLDER_CREATED"
+  | "FOLDER_RENAMED"
+  | "FOLDER_MOVED"
+  | "FOLDER_DELETED"
+  | "PHOTO_MOVED_TO_FOLDER"
+  | "ALBUM_CREATED"
+  | "ALBUM_UPDATED"
+  | "ALBUM_DELETED"
+  | "PHOTO_ADDED_TO_ALBUM"
+  | "PHOTO_REMOVED_FROM_ALBUM";
 
 export interface Photo {
   id: string;
@@ -30,6 +40,7 @@ export interface Photo {
   updatedAt: string;
   tags: string[];
   uploadedByUsername?: string | null;
+  folderId?: string | null;
 }
 
 export interface EventLog {
@@ -74,4 +85,68 @@ export interface SavedView {
     sort: "newest" | "oldest" | "status";
     tag?: string | null;
   };
+}
+
+// Folder types
+export interface Folder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  path?: string;
+  photoCount: number;
+  children: Folder[];
+}
+
+export interface FolderListResponse {
+  items: Folder[];
+  total: number;
+}
+
+export interface CreateFolderRequest {
+  name: string;
+  parentId?: string | null;
+}
+
+export interface UpdateFolderRequest {
+  name?: string;
+  parentId?: string | null;
+}
+
+export interface MovePhotosRequest {
+  photoIds: string[];
+  folderId?: string | null;
+}
+
+// Album types
+export interface Album {
+  id: string;
+  name: string;
+  description: string | null;
+  coverPhotoId: string | null;
+  coverPhotoUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+  photoCount: number;
+}
+
+export interface AlbumListResponse {
+  items: Album[];
+  total: number;
+}
+
+export interface CreateAlbumRequest {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateAlbumRequest {
+  name?: string;
+  description?: string;
+  coverPhotoId?: string;
+}
+
+export interface AlbumPhotosRequest {
+  photoIds: string[];
 }
