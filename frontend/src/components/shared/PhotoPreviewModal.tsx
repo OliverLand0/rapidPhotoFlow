@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Check, XCircle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles, Keyboard } from "lucide-react";
+import { X, Check, XCircle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles, Keyboard, Share2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { TagEditor } from "./TagEditor";
@@ -7,6 +7,7 @@ import { useToast } from "../ui/toast";
 import { photoClient, aiClient } from "../../lib/api/client";
 import { formatFileSize, formatRelativeTime } from "../../lib/utils";
 import type { Photo } from "../../lib/api/types";
+import { CreateShareModal } from "../shares/CreateShareModal";
 
 interface PhotoPreviewModalProps {
   photo: Photo;
@@ -29,6 +30,7 @@ export function PhotoPreviewModal({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAutoTagging, setIsAutoTagging] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const { toast } = useToast();
 
   const canApprove = photo.status === "PROCESSED" || photo.status === "REJECTED";
@@ -204,6 +206,11 @@ export function PhotoPreviewModal({
             e.preventDefault();
             handleAutoTag();
           }
+          break;
+        case "s":
+          // Share
+          e.preventDefault();
+          setShowShareModal(true);
           break;
         case "?":
           // Toggle shortcuts help
@@ -405,6 +412,19 @@ export function PhotoPreviewModal({
                 </Button>
               )}
 
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-between"
+                onClick={() => setShowShareModal(true)}
+              >
+                <span className="flex items-center">
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share
+                </span>
+                <kbd className="hidden md:inline px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">S</kbd>
+              </Button>
+
               <div className="pt-2 border-t border-border mt-2">
                 <Button
                   variant="ghost"
@@ -473,6 +493,10 @@ export function PhotoPreviewModal({
                 <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">I</kbd>
               </div>
               <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Share photo</span>
+                <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">S</kbd>
+              </div>
+              <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Delete photo</span>
                 <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">D</kbd>
               </div>
@@ -488,6 +512,13 @@ export function PhotoPreviewModal({
           </div>
         </div>
       )}
+
+      {/* Share Modal */}
+      <CreateShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        photo={photo}
+      />
     </div>
   );
 }

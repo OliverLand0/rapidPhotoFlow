@@ -27,7 +27,13 @@ export type EventType =
   | "ALBUM_UPDATED"
   | "ALBUM_DELETED"
   | "PHOTO_ADDED_TO_ALBUM"
-  | "PHOTO_REMOVED_FROM_ALBUM";
+  | "PHOTO_REMOVED_FROM_ALBUM"
+  | "SHARED_LINK_CREATED"
+  | "SHARED_LINK_UPDATED"
+  | "SHARED_LINK_ACCESSED"
+  | "SHARED_LINK_DEACTIVATED"
+  | "SHARED_LINK_DELETED"
+  | "SHARED_CONTENT_DOWNLOADED";
 
 export interface Photo {
   id: string;
@@ -149,4 +155,77 @@ export interface UpdateAlbumRequest {
 
 export interface AlbumPhotosRequest {
   photoIds: string[];
+}
+
+// Sharing types
+export type ShareType = "PHOTO" | "ALBUM" | "FOLDER";
+
+export interface SharedLink {
+  id: string;
+  token: string;
+  url: string;
+  type: ShareType;
+  targetId: string;
+  targetName: string;
+  targetThumbnailUrl: string | null;
+  hasPassword: boolean;
+  expiresAt: string | null;
+  downloadAllowed: boolean;
+  downloadOriginal: boolean;
+  maxViews: number | null;
+  requireEmail: boolean;
+  isActive: boolean;
+  isExpired: boolean;
+  isAccessible: boolean;
+  viewCount: number;
+  downloadCount: number;
+  lastAccessedAt: string | null;
+  createdAt: string;
+}
+
+export interface SharedLinkListResponse {
+  items: SharedLink[];
+  total: number;
+}
+
+export interface CreateShareRequest {
+  photoId: string;
+  password?: string;
+  downloadAllowed?: boolean;
+  downloadOriginal?: boolean;
+  maxViews?: number;
+  requireEmail?: boolean;
+  expiresIn?: "never" | "1h" | "24h" | "7d" | "30d";
+  expiresAt?: string;
+}
+
+export interface UpdateShareRequest {
+  downloadAllowed?: boolean;
+  downloadOriginal?: boolean;
+  maxViews?: number | null;
+  requireEmail?: boolean;
+  expiresIn?: "never" | "1h" | "24h" | "7d" | "30d";
+  expiresAt?: string | null;
+  isActive?: boolean;
+}
+
+export interface PublicShareResponse {
+  type: ShareType;
+  name: string;
+  photoCount?: number;
+  requiresPassword: boolean;
+  requiresEmail: boolean;
+  downloadAllowed: boolean;
+  downloadOriginal: boolean;
+  isExpired: boolean;
+  isDisabled: boolean;
+  isAccessible: boolean;
+  errorMessage?: string;
+  photoUrl?: string;
+  thumbnailUrl?: string;
+}
+
+export interface VerifyPasswordResponse {
+  valid: boolean;
+  error?: string;
 }

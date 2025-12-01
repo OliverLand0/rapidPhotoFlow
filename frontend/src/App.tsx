@@ -15,6 +15,7 @@ import { ConfirmEmailPage } from "./pages/ConfirmEmailPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { SharePage } from "./pages/SharePage";
 
 // Error boundary to catch and display errors
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
@@ -60,6 +61,9 @@ function App() {
                 <Route path="/confirm-email" element={<ConfirmEmailPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+                {/* Public share route (no auth required) */}
+                <Route path="/s/:token" element={<SharePage />} />
 
                 {/* Protected app routes (require authentication) */}
                 <Route

@@ -13,6 +13,12 @@ import type {
   AlbumListResponse,
   CreateAlbumRequest,
   UpdateAlbumRequest,
+  SharedLink,
+  SharedLinkListResponse,
+  CreateShareRequest,
+  UpdateShareRequest,
+  PublicShareResponse,
+  VerifyPasswordResponse,
 } from "./types";
 import { getAccessToken } from "../auth/cognitoConfig";
 
@@ -440,6 +446,105 @@ export const albumClient = {
       method: "PUT",
       body: JSON.stringify({ photoId }),
     });
+  },
+};
+
+// Share client for authenticated share management
+export const shareClient = {
+  async getShares(): Promise<SharedLinkListResponse> {
+    return fetchJson<SharedLinkListResponse>(`${API_BASE}/shares`);
+  },
+
+  async getShareById(id: string): Promise<SharedLink> {
+    return fetchJson<SharedLink>(`${API_BASE}/shares/${id}`);
+  },
+
+  async createShare(request: CreateShareRequest): Promise<SharedLink> {
+    return fetchJson<SharedLink>(`${API_BASE}/shares`, {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async updateShare(id: string, request: UpdateShareRequest): Promise<SharedLink> {
+    return fetchJson<SharedLink>(`${API_BASE}/shares/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async deleteShare(id: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/shares/${id}`, {
+      method: "DELETE",
+      headers: authHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete share: ${response.status}`);
+    }
+  },
+
+  async deactivateShare(id: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/shares/${id}/deactivate`, {
+      method: "PUT",
+      headers: authHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to deactivate share: ${response.status}`);
+    }
+  },
+
+  async activateShare(id: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/shares/${id}/activate`, {
+      method: "PUT",
+      headers: authHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to activate share: ${response.status}`);
+    }
+  },
+
+  async getSharesForPhoto(photoId: string): Promise<SharedLinkListResponse> {
+    return fetchJson<SharedLinkListResponse>(`${API_BASE}/shares/photo/${photoId}`);
+  },
+};
+
+// Public share client (no auth required)
+const PUBLIC_SHARE_BASE = isDev ? "http://localhost:8080/s" : "/s";
+
+export const publicShareClient = {
+  async getShareInfo(token: string): Promise<PublicShareResponse> {
+    const response = await fetch(`${PUBLIC_SHARE_BASE}/${token}`);
+    if (!response.ok) {
+      throw new Error(`Failed to get share info: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  async verifyPassword(token: string, password: string): Promise<VerifyPasswordResponse> {
+    const response = await fetch(`${PUBLIC_SHARE_BASE}/${token}/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to verify password: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  getPhotoUrl(token: string): string {
+    return `${PUBLIC_SHARE_BASE}/${token}/photo`;
+  },
+
+  getThumbnailUrl(token: string): string {
+    return `${PUBLIC_SHARE_BASE}/${token}/thumbnail`;
+  },
+
+  getDownloadUrl(token: string): string {
+    return `${PUBLIC_SHARE_BASE}/${token}/download`;
   },
 };
 

@@ -44,6 +44,9 @@ public class SecurityConfig {
                 // Allow OPTIONS requests (CORS preflight)
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                // Public share endpoints (no auth required)
+                .requestMatchers("/s/**").permitAll()
+
                 // Photo content is public (needed for img tags and AI service)
                 .requestMatchers(HttpMethod.GET, "/api/photos/*/content").permitAll()
 
