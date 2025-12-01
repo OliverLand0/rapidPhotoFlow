@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Link, Outlet } from "react-router-dom";
-import { Upload, Grid3X3, Info, User, LogIn } from "lucide-react";
+import { Upload, Grid3X3, Info, User, LogIn, Share2 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { StatusSummaryBar } from "./shared/StatusSummaryBar";
@@ -11,6 +11,7 @@ import { AboutDialog } from "./AboutDialog";
 const navItems = [
   { to: "/", icon: Upload, label: "Upload" },
   { to: "/review", icon: Grid3X3, label: "Review" },
+  { to: "/shares", icon: Share2, label: "Shares" },
 ];
 
 export function Layout() {

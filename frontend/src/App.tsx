@@ -16,6 +16,7 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SharePage } from "./pages/SharePage";
+import { SharesPage } from "./pages/SharesPage";
 
 // Error boundary to catch and display errors
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
@@ -76,6 +77,7 @@ function App() {
                 >
                   <Route index element={<UploadPage />} />
                   <Route path="review" element={<ReviewPage />} />
+                  <Route path="shares" element={<SharesPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                 </Route>
               </Routes>
