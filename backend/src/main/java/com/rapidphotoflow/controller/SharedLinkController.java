@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/shares")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Shares", description = "Share link management endpoints")
 public class SharedLinkController {
 
@@ -27,7 +29,7 @@ public class SharedLinkController {
     public ResponseEntity<SharedLinkListResponse> getShares() {
         List<SharedLink> shares = sharedLinkService.getSharesByUser();
         List<SharedLinkDTO> dtos = shares.stream()
-                .map(SharedLinkDTO::fromDomain)
+                .map(share -> SharedLinkDTO.fromDomain(share, sharedLinkService.getThumbnailPhotoId(share)))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(SharedLinkListResponse.of(dtos));
     }
@@ -53,10 +55,12 @@ public class SharedLinkController {
                 return ResponseEntity.badRequest().build();
             }
 
-            return ResponseEntity.ok(SharedLinkDTO.fromDomain(share));
+            return ResponseEntity.ok(SharedLinkDTO.fromDomain(share, sharedLinkService.getThumbnailPhotoId(share)));
         } catch (IllegalArgumentException e) {
+            log.error("Failed to create share: {}", e.getMessage());
             return ResponseEntity.badRequest().build();
         } catch (IllegalStateException e) {
+            log.error("Unauthorized share creation attempt: {}", e.getMessage());
             return ResponseEntity.status(401).build();
         }
     }
@@ -113,7 +117,7 @@ public class SharedLinkController {
     @Operation(summary = "Get share by ID", description = "Get a specific share link by its ID")
     public ResponseEntity<SharedLinkDTO> getShareById(@PathVariable UUID id) {
         return sharedLinkService.getShareById(id)
-                .map(SharedLinkDTO::fromDomain)
+                .map(share -> SharedLinkDTO.fromDomain(share, sharedLinkService.getThumbnailPhotoId(share)))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -133,7 +137,7 @@ public class SharedLinkController {
                     request.resolveExpiresAt(),
                     request.getIsActive()
             );
-            return ResponseEntity.ok(SharedLinkDTO.fromDomain(share));
+            return ResponseEntity.ok(SharedLinkDTO.fromDomain(share, sharedLinkService.getThumbnailPhotoId(share)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         } catch (IllegalStateException e) {
@@ -185,7 +189,7 @@ public class SharedLinkController {
     public ResponseEntity<SharedLinkListResponse> getSharesForPhoto(@PathVariable UUID photoId) {
         List<SharedLink> shares = sharedLinkService.getSharesForPhoto(photoId);
         List<SharedLinkDTO> dtos = shares.stream()
-                .map(SharedLinkDTO::fromDomain)
+                .map(share -> SharedLinkDTO.fromDomain(share, sharedLinkService.getThumbnailPhotoId(share)))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(SharedLinkListResponse.of(dtos));
     }

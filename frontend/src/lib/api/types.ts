@@ -221,9 +221,9 @@ export interface PublicShareResponse {
   requiresEmail: boolean;
   downloadAllowed: boolean;
   downloadOriginal: boolean;
-  isExpired: boolean;
-  isDisabled: boolean;
-  isAccessible: boolean;
+  expired: boolean;
+  disabled: boolean;
+  accessible: boolean;
   errorMessage?: string;
   photoUrl?: string;
   thumbnailUrl?: string;
@@ -232,4 +232,12 @@ export interface PublicShareResponse {
 export interface VerifyPasswordResponse {
   valid: boolean;
   error?: string;
+}
+
+export interface PublicPhoto {
+  id: string;
+  filename: string;
+  mimeType: string;
+  photoUrl: string;
+  thumbnailUrl: string;
 }

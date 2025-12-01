@@ -18,6 +18,7 @@ import type {
   CreateShareRequest,
   UpdateShareRequest,
   PublicShareResponse,
+  PublicPhoto,
   VerifyPasswordResponse,
 } from "./types";
 import { getAccessToken } from "../auth/cognitoConfig";
@@ -545,6 +546,14 @@ export const publicShareClient = {
 
   getDownloadUrl(token: string): string {
     return `${PUBLIC_SHARE_BASE}/${token}/download`;
+  },
+
+  async getPhotos(token: string): Promise<PublicPhoto[]> {
+    const response = await fetch(`${PUBLIC_SHARE_BASE}/${token}/photos`);
+    if (!response.ok) {
+      throw new Error(`Failed to get photos: ${response.status}`);
+    }
+    return response.json();
   },
 };
 

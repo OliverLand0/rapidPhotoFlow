@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X, Share2, Copy, Check, Link, ChevronDown, ChevronUp, Lock, Clock, Eye, Download, Image, FolderOpen, Images } from "lucide-react";
-import { shareClient } from "../../lib/api/client";
-import type { Photo, Album, Folder, SharedLink, CreateShareRequest, ShareType } from "../../lib/api/types";
+import { shareClient, photoClient } from "../../lib/api/client";
+import type { Photo, Album, Folder, SharedLink, CreateShareRequest } from "../../lib/api/types";
 
 // Generic target type for sharing
 type ShareTarget =
@@ -115,7 +115,7 @@ export function CreateShareModal({ isOpen, onClose, photo, album, folder }: Crea
     if (!target) return null;
     switch (target.type) {
       case "PHOTO":
-        return `/api/photos/${target.photo.id}/content`;
+        return photoClient.getPhotoContentUrl(target.photo.id);
       case "ALBUM":
         return target.album.coverPhotoUrl;
       case "FOLDER":

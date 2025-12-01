@@ -1,6 +1,7 @@
 package com.rapidphotoflow.controller;
 
 import com.rapidphotoflow.domain.SharedLink;
+import com.rapidphotoflow.dto.PublicPhotoDTO;
 import com.rapidphotoflow.dto.PublicShareResponse;
 import com.rapidphotoflow.dto.VerifyPasswordRequest;
 import com.rapidphotoflow.service.PhotoService;
@@ -14,8 +15,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Public controller for accessing shared content.
@@ -154,6 +157,62 @@ public class PublicShareController {
                     }
 
                     // Return full image for now (thumbnail generation can be added later)
+                    return ResponseEntity.ok()
+                            .contentType(MediaType.parseMediaType(photo.getMimeType()))
+                            .body(content);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{token}/photos")
+    @Operation(summary = "Get photos in shared folder/album", description = "Get all photos in a shared folder or album")
+    public ResponseEntity<List<PublicPhotoDTO>> getSharedPhotos(@PathVariable String token) {
+        Optional<SharedLink> shareOpt = sharedLinkService.getShareByToken(token);
+
+        if (shareOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        SharedLink share = shareOpt.get();
+
+        if (!share.isAccessible()) {
+            return ResponseEntity.status(403).build();
+        }
+
+        List<PublicPhotoDTO> photos = sharedLinkService.getPhotosForShare(share.getId());
+
+        // Record view
+        sharedLinkService.recordView(token);
+
+        return ResponseEntity.ok(photos);
+    }
+
+    @GetMapping("/{token}/photos/{photoId}")
+    @Operation(summary = "Get specific photo from shared folder/album", description = "Get a specific photo's content from a shared folder or album")
+    public ResponseEntity<byte[]> getSharedFolderPhoto(@PathVariable String token, @PathVariable UUID photoId) {
+        Optional<SharedLink> shareOpt = sharedLinkService.getShareByToken(token);
+
+        if (shareOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        SharedLink share = shareOpt.get();
+
+        if (!share.isAccessible()) {
+            return ResponseEntity.status(403).build();
+        }
+
+        // Verify photo belongs to this share
+        if (!sharedLinkService.photoExistsInShare(share.getId(), photoId)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return photoService.getPhotoById(photoId)
+                .map(photo -> {
+                    byte[] content = photoService.getPhotoContent(photoId);
+                    if (content == null) {
+                        return ResponseEntity.notFound().<byte[]>build();
+                    }
                     return ResponseEntity.ok()
                             .contentType(MediaType.parseMediaType(photo.getMimeType()))
                             .body(content);

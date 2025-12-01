@@ -1,6 +1,7 @@
 package com.rapidphotoflow.dto;
 
 import com.rapidphotoflow.domain.SharedLink;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -27,8 +28,11 @@ public class SharedLinkDTO {
     private boolean downloadOriginal;
     private Integer maxViews;
     private boolean requireEmail;
+    @JsonProperty("isActive")
     private boolean isActive;
+    @JsonProperty("isExpired")
     private boolean isExpired;
+    @JsonProperty("isAccessible")
     private boolean isAccessible;
     private int viewCount;
     private int downloadCount;
@@ -36,9 +40,15 @@ public class SharedLinkDTO {
     private Instant createdAt;
 
     public static SharedLinkDTO fromDomain(SharedLink domain) {
+        return fromDomain(domain, null);
+    }
+
+    public static SharedLinkDTO fromDomain(SharedLink domain, UUID thumbnailPhotoId) {
         String thumbnailUrl = null;
-        if (domain.getPhotoId() != null) {
-            thumbnailUrl = "/api/photos/" + domain.getPhotoId() + "/thumbnail";
+        // Use explicit thumbnail photo ID if provided, otherwise fall back to photoId for photo shares
+        UUID effectivePhotoId = thumbnailPhotoId != null ? thumbnailPhotoId : domain.getPhotoId();
+        if (effectivePhotoId != null) {
+            thumbnailUrl = "/api/photos/" + effectivePhotoId + "/content";
         }
 
         return SharedLinkDTO.builder()

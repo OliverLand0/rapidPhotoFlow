@@ -64,7 +64,7 @@ function App() {
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
 
                 {/* Public share route (no auth required) */}
-                <Route path="/s/:token" element={<SharePage />} />
+                <Route path="/share/:token" element={<SharePage />} />
 
                 {/* Protected app routes (require authentication) */}
                 <Route

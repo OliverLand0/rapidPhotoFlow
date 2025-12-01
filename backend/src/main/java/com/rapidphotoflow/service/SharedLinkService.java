@@ -2,10 +2,12 @@ package com.rapidphotoflow.service;
 
 import com.rapidphotoflow.domain.EventType;
 import com.rapidphotoflow.domain.SharedLink;
+import com.rapidphotoflow.dto.PublicPhotoDTO;
 import com.rapidphotoflow.entity.AlbumEntity;
 import com.rapidphotoflow.entity.FolderEntity;
 import com.rapidphotoflow.entity.PhotoEntity;
 import com.rapidphotoflow.entity.SharedLinkEntity;
+import com.rapidphotoflow.repository.AlbumPhotoRepository;
 import com.rapidphotoflow.repository.AlbumRepository;
 import com.rapidphotoflow.repository.FolderRepository;
 import com.rapidphotoflow.repository.PhotoRepository;
@@ -31,6 +33,7 @@ public class SharedLinkService {
     private final SharedLinkRepository sharedLinkRepository;
     private final PhotoRepository photoRepository;
     private final AlbumRepository albumRepository;
+    private final AlbumPhotoRepository albumPhotoRepository;
     private final FolderRepository folderRepository;
     private final CurrentUserService currentUserService;
     private final TokenService tokenService;
@@ -142,6 +145,7 @@ public class SharedLinkService {
                                                Boolean requireEmail, Instant expiresAt,
                                                String password) {
         UUID userId = getCurrentUserId();
+        log.info("createShareWithSettings: userId={}, photoId={}", userId, photoId);
         if (userId == null) {
             throw new IllegalStateException("User not authenticated");
         }
@@ -150,7 +154,9 @@ public class SharedLinkService {
         PhotoEntity photo = photoRepository.findById(photoId)
                 .orElseThrow(() -> new IllegalArgumentException("Photo not found"));
 
+        log.info("Photo found: uploadedByUserId={}", photo.getUploadedByUserId());
         if (!userId.equals(photo.getUploadedByUserId())) {
+            log.error("User ID mismatch: currentUserId={}, photoUploadedBy={}", userId, photo.getUploadedByUserId());
             throw new IllegalArgumentException("Photo not found");
         }
 
@@ -521,16 +527,104 @@ public class SharedLinkService {
      * Get the photo count for a shared album
      */
     public int getAlbumPhotoCount(UUID albumId) {
-        return albumRepository.findById(albumId)
-                .map(album -> album.getPhotoIds() != null ? album.getPhotoIds().size() : 0)
-                .orElse(0);
+        return (int) albumPhotoRepository.countByAlbumId(albumId);
+    }
+
+    /**
+     * Get a thumbnail photo ID for a share link (for album/folder shares, returns the first photo)
+     */
+    public UUID getThumbnailPhotoId(SharedLink share) {
+        // For photo shares, return the photo ID directly
+        if (share.getPhotoId() != null) {
+            return share.getPhotoId();
+        }
+
+        // For album shares, get the cover photo or first photo
+        if (share.getAlbumId() != null) {
+            AlbumEntity album = albumRepository.findById(share.getAlbumId()).orElse(null);
+            if (album != null && album.getCoverPhotoId() != null) {
+                return album.getCoverPhotoId();
+            }
+            // Get first photo from album
+            return albumPhotoRepository.findByAlbumIdOrderByAddedAtDesc(share.getAlbumId()).stream()
+                    .map(ap -> ap.getPhotoId())
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        // For folder shares, get first photo from folder
+        if (share.getFolderId() != null) {
+            return photoRepository.findByFolderId(share.getFolderId()).stream()
+                    .map(PhotoEntity::getId)
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        return null;
     }
 
     /**
      * Get the photo count for a shared folder
      */
     public int getFolderPhotoCount(UUID folderId) {
-        return photoRepository.countByFolderId(folderId);
+        return (int) photoRepository.countByFolderId(folderId);
+    }
+
+    /**
+     * Get photos for a shared folder or album (public access)
+     */
+    public List<PublicPhotoDTO> getPhotosForShare(UUID shareId) {
+        SharedLinkEntity entity = sharedLinkRepository.findById(shareId).orElse(null);
+        if (entity == null) {
+            return Collections.emptyList();
+        }
+
+        List<PhotoEntity> photos;
+        if (entity.getFolderId() != null) {
+            photos = photoRepository.findByFolderId(entity.getFolderId());
+        } else if (entity.getAlbumId() != null) {
+            photos = albumPhotoRepository.findByAlbumIdOrderByAddedAtDesc(entity.getAlbumId()).stream()
+                    .map(ap -> photoRepository.findById(ap.getPhotoId()).orElse(null))
+                    .filter(p -> p != null)
+                    .collect(Collectors.toList());
+        } else if (entity.getPhotoId() != null) {
+            // Single photo share
+            photos = photoRepository.findById(entity.getPhotoId())
+                    .map(Collections::singletonList)
+                    .orElse(Collections.emptyList());
+        } else {
+            return Collections.emptyList();
+        }
+
+        return photos.stream()
+                .map(photo -> PublicPhotoDTO.create(photo.getId(), photo.getFilename(), photo.getMimeType(), entity.getToken()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Check if a photo exists in a share (for folder/album shares)
+     */
+    public boolean photoExistsInShare(UUID shareId, UUID photoId) {
+        SharedLinkEntity entity = sharedLinkRepository.findById(shareId).orElse(null);
+        if (entity == null) {
+            return false;
+        }
+
+        if (entity.getPhotoId() != null) {
+            return entity.getPhotoId().equals(photoId);
+        }
+
+        if (entity.getFolderId() != null) {
+            return photoRepository.findById(photoId)
+                    .map(photo -> entity.getFolderId().equals(photo.getFolderId()))
+                    .orElse(false);
+        }
+
+        if (entity.getAlbumId() != null) {
+            return albumPhotoRepository.existsByAlbumIdAndPhotoId(entity.getAlbumId(), photoId);
+        }
+
+        return false;
     }
 
     private String generateUniqueToken() {
@@ -621,9 +715,9 @@ public class SharedLinkService {
 
     private String buildShareUrl(String token) {
         if (shareBaseUrl != null && !shareBaseUrl.isEmpty()) {
-            return shareBaseUrl + "/s/" + token;
+            return shareBaseUrl + "/share/" + token;
         }
-        return "/s/" + token;
+        return "/share/" + token;
     }
 
     // Simple password hashing for MVP - in production use BCrypt via PasswordService

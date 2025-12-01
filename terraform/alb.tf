@@ -147,6 +147,23 @@ resource "aws_lb_listener_rule" "ai_service" {
   }
 }
 
+# Listener Rule for Public Shares (no auth required)
+resource "aws_lb_listener_rule" "public_shares" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 150
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/s/*"]
+    }
+  }
+}
+
 # Output ALB DNS name
 output "alb_dns_name" {
   value       = aws_lb.main.dns_name
