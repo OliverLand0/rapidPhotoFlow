@@ -18,9 +18,6 @@ import com.kms.katalon.core.configuration.RunConfiguration
 import internal.GlobalVariable as GlobalVariable
 import org.openqa.selenium.Keys as Keys
 
-import com.rapidphotoflow.keywords.AuthKeywords
-import com.rapidphotoflow.keywords.PhotoKeywords
-
 /**
  * Test Case: Upload Multiple Photos
  *
@@ -33,9 +30,6 @@ import com.rapidphotoflow.keywords.PhotoKeywords
  * - Photos appear in review page
  */
 
-AuthKeywords authKeywords = new AuthKeywords()
-PhotoKeywords photoKeywords = new PhotoKeywords()
-
 // Test data paths
 String projectDir = RunConfiguration.getProjectDir()
 String testImagePath1 = projectDir + '/Data Files/TestImages/test_photo_1.jpg'
@@ -47,7 +41,13 @@ WebUI.openBrowser('')
 WebUI.maximizeWindow()
 
 // Step 2: Login
-authKeywords.login(GlobalVariable.TEST_USER_EMAIL, GlobalVariable.TEST_USER_PASSWORD)
+WebUI.navigateToUrl(GlobalVariable.BASE_URL + '/login')
+WebUI.waitForPageLoad(GlobalVariable.PAGE_LOAD_TIMEOUT)
+WebUI.waitForElementVisible(findTestObject('Object Repository/Pages/Login/txt_Email'), GlobalVariable.ELEMENT_TIMEOUT)
+WebUI.setText(findTestObject('Object Repository/Pages/Login/txt_Email'), GlobalVariable.TEST_USER_EMAIL)
+WebUI.setText(findTestObject('Object Repository/Pages/Login/txt_Password'), GlobalVariable.TEST_USER_PASSWORD)
+WebUI.click(findTestObject('Object Repository/Pages/Login/btn_SignIn'))
+WebUI.waitForPageLoad(GlobalVariable.PAGE_LOAD_TIMEOUT)
 
 // Step 3: Verify on upload page
 WebUI.verifyElementPresent(findTestObject('Object Repository/Pages/Upload/div_DropZone'), GlobalVariable.ELEMENT_TIMEOUT)

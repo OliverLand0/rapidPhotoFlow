@@ -17,8 +17,6 @@ import com.kms.katalon.core.windows.keyword.WindowsBuiltinKeywords as Windows
 import internal.GlobalVariable as GlobalVariable
 import org.openqa.selenium.Keys as Keys
 
-import com.rapidphotoflow.keywords.AuthKeywords
-
 /**
  * Test Case: User Logout
  *
@@ -30,14 +28,18 @@ import com.rapidphotoflow.keywords.AuthKeywords
  * - Redirected to login page
  */
 
-AuthKeywords authKeywords = new AuthKeywords()
-
 // Step 1: Open browser and login
 WebUI.openBrowser('')
 WebUI.maximizeWindow()
 
-// Step 2: Login with default user
-authKeywords.login(GlobalVariable.TEST_USER_EMAIL, GlobalVariable.TEST_USER_PASSWORD)
+// Step 2: Navigate to login page and login
+WebUI.navigateToUrl(GlobalVariable.BASE_URL + '/login')
+WebUI.waitForPageLoad(GlobalVariable.PAGE_LOAD_TIMEOUT)
+WebUI.waitForElementVisible(findTestObject('Object Repository/Pages/Login/txt_Email'), GlobalVariable.ELEMENT_TIMEOUT)
+WebUI.setText(findTestObject('Object Repository/Pages/Login/txt_Email'), GlobalVariable.TEST_USER_EMAIL)
+WebUI.setText(findTestObject('Object Repository/Pages/Login/txt_Password'), GlobalVariable.TEST_USER_PASSWORD)
+WebUI.click(findTestObject('Object Repository/Pages/Login/btn_SignIn'))
+WebUI.waitForPageLoad(GlobalVariable.PAGE_LOAD_TIMEOUT)
 
 // Step 3: Verify logged in
 WebUI.verifyElementPresent(findTestObject('Object Repository/Pages/Common/btn_Logout'), GlobalVariable.ELEMENT_TIMEOUT)

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="Include/scripts/groovy"/>
+	<classpathentry kind="src" path="Keywords"/>
+	<classpathentry kind="src" path="Scripts"/>
+	<classpathentry kind="src" path="Test Listeners"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="con" path="com.katalon.katalon_studio.CONTAINER"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

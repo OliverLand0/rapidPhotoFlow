@@ -17,9 +17,6 @@ import com.kms.katalon.core.windows.keyword.WindowsBuiltinKeywords as Windows
 import internal.GlobalVariable as GlobalVariable
 import org.openqa.selenium.Keys as Keys
 
-import com.rapidphotoflow.keywords.AuthKeywords
-import com.rapidphotoflow.keywords.ReviewKeywords
-
 /**
  * Test Case: Bulk Delete Photos
  *
@@ -33,15 +30,18 @@ import com.rapidphotoflow.keywords.ReviewKeywords
  * - Photo count decreases
  */
 
-AuthKeywords authKeywords = new AuthKeywords()
-ReviewKeywords reviewKeywords = new ReviewKeywords()
-
 // Step 1: Open browser
 WebUI.openBrowser('')
 WebUI.maximizeWindow()
 
 // Step 2: Login
-authKeywords.login(GlobalVariable.TEST_USER_EMAIL, GlobalVariable.TEST_USER_PASSWORD)
+WebUI.navigateToUrl(GlobalVariable.BASE_URL + '/login')
+WebUI.waitForPageLoad(GlobalVariable.PAGE_LOAD_TIMEOUT)
+WebUI.waitForElementVisible(findTestObject('Object Repository/Pages/Login/txt_Email'), GlobalVariable.ELEMENT_TIMEOUT)
+WebUI.setText(findTestObject('Object Repository/Pages/Login/txt_Email'), GlobalVariable.TEST_USER_EMAIL)
+WebUI.setText(findTestObject('Object Repository/Pages/Login/txt_Password'), GlobalVariable.TEST_USER_PASSWORD)
+WebUI.click(findTestObject('Object Repository/Pages/Login/btn_SignIn'))
+WebUI.waitForPageLoad(GlobalVariable.PAGE_LOAD_TIMEOUT)
 
 // Step 3: Navigate to review page
 WebUI.click(findTestObject('Object Repository/Pages/Common/lnk_Review'))
