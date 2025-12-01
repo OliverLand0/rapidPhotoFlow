@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseEntity>
+   <description>Test bulk approve operation on multiple photos</description>
+   <name>TC_BulkApprove</name>
+   <tag>bulk,approve,photos,workflow</tag>
+   <comment></comment>
+   <testCaseGuid>tc-bulk-approve-001</testCaseGuid>
+</TestCaseEntity>

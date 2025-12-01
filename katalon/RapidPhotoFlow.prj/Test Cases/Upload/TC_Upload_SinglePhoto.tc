@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseEntity>
+   <description>Test single photo upload functionality</description>
+   <name>TC_Upload_SinglePhoto</name>
+   <tag>upload,smoke,photos</tag>
+   <comment></comment>
+   <testCaseGuid>tc-upload-single-001</testCaseGuid>
+</TestCaseEntity>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseEntity>
+   <description>Test rejecting a photo</description>
+   <name>TC_RejectPhoto</name>
+   <tag>review,reject,photos,workflow</tag>
+   <comment></comment>
+   <testCaseGuid>tc-review-reject-001</testCaseGuid>
+</TestCaseEntity>

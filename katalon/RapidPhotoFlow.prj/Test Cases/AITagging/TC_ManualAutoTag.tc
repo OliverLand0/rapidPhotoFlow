@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseEntity>
+   <description>Test manual auto-tagging of a photo</description>
+   <name>TC_ManualAutoTag</name>
+   <tag>ai,tagging,photos</tag>
+   <comment></comment>
+   <testCaseGuid>tc-autotag-manual-001</testCaseGuid>
+</TestCaseEntity>

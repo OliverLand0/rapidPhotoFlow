@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GlobalVariableEntities>
+   <description>Execution profile for staging environment</description>
+   <name>staging</name>
+   <tag></tag>
+   <defaultProfile>false</defaultProfile>
+   <GlobalVariableEntity>
+      <description>Base URL for the frontend application</description>
+      <initValue>'https://staging.rapidphotoflow.com'</initValue>
+      <name>BASE_URL</name>
+   </GlobalVariableEntity>
+   <GlobalVariableEntity>
+      <description>Base URL for the backend API</description>
+      <initValue>'https://api.staging.rapidphotoflow.com'</initValue>
+      <name>API_BASE_URL</name>
+   </GlobalVariableEntity>
+   <GlobalVariableEntity>
+      <description>Base URL for the AI service</description>
+      <initValue>'https://ai.staging.rapidphotoflow.com'</initValue>
+      <name>AI_SERVICE_URL</name>
+   </GlobalVariableEntity>
+   <GlobalVariableEntity>
+      <description>Default timeout for page load (seconds)</description>
+      <initValue>30</initValue>
+      <name>PAGE_LOAD_TIMEOUT</name>
+   </GlobalVariableEntity>
+   <GlobalVariableEntity>
+      <description>Default timeout for element wait (seconds)</description>
+      <initValue>15</initValue>
+      <name>ELEMENT_TIMEOUT</name>
+   </GlobalVariableEntity>
+   <GlobalVariableEntity>
+      <description>Test user email for authentication tests</description>
+      <initValue>'testuser@rapidphotoflow.com'</initValue>
+      <name>TEST_USER_EMAIL</name>
+   </GlobalVariableEntity>
+   <GlobalVariableEntity>
+      <description>Test user password</description>
+      <initValue>'TestPassword123!'</initValue>
+      <name>TEST_USER_PASSWORD</name>
+   </GlobalVariableEntity>
+   <GlobalVariableEntity>
+      <description>Test user username</description>
+      <initValue>'testuser'</initValue>
+      <name>TEST_USER_USERNAME</name>
+   </GlobalVariableEntity>
+   <GlobalVariableEntity>
+      <description>Path to test images directory</description>
+      <initValue>'Data Files/TestImages'</initValue>
+      <name>TEST_IMAGES_PATH</name>
+   </GlobalVariableEntity>
+</GlobalVariableEntities>

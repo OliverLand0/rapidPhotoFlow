@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseEntity>
+   <description>Test successful user signup with valid data</description>
+   <name>TC_Signup_ValidData</name>
+   <tag>authentication,signup</tag>
+   <comment></comment>
+   <testCaseGuid>tc-signup-valid-001</testCaseGuid>
+</TestCaseEntity>

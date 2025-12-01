@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseEntity>
+   <description>Test photo upload with auto-tagging enabled</description>
+   <name>TC_Upload_WithAutoTag</name>
+   <tag>upload,photos,ai,tagging</tag>
+   <comment></comment>
+   <testCaseGuid>tc-upload-autotag-001</testCaseGuid>
+</TestCaseEntity>

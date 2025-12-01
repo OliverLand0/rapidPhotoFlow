@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseEntity>
+   <description>Test filtering photos by status</description>
+   <name>TC_FilterByStatus</name>
+   <tag>review,filter,photos</tag>
+   <comment></comment>
+   <testCaseGuid>tc-review-filter-001</testCaseGuid>
+</TestCaseEntity>

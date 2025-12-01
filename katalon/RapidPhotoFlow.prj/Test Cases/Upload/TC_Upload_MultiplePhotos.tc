@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseEntity>
+   <description>Test multiple photo upload functionality</description>
+   <name>TC_Upload_MultiplePhotos</name>
+   <tag>upload,photos,bulk</tag>
+   <comment></comment>
+   <testCaseGuid>tc-upload-multi-001</testCaseGuid>
+</TestCaseEntity>

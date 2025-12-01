@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseEntity>
+   <description>Test GET /api/photos endpoint</description>
+   <name>TC_API_GetPhotos</name>
+   <tag>api,photos,get</tag>
+   <comment></comment>
+   <testCaseGuid>tc-api-get-photos-001</testCaseGuid>
+</TestCaseEntity>

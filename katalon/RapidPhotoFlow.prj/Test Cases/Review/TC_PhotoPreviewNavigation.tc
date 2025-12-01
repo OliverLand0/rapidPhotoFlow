@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseEntity>
+   <description>Test photo preview modal navigation</description>
+   <name>TC_PhotoPreviewNavigation</name>
+   <tag>review,preview,navigation,photos</tag>
+   <comment></comment>
+   <testCaseGuid>tc-review-preview-nav-001</testCaseGuid>
+</TestCaseEntity>

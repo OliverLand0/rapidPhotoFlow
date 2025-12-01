@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseEntity>
+   <description>Test user logout functionality</description>
+   <name>TC_Logout</name>
+   <tag>authentication,logout,smoke</tag>
+   <comment></comment>
+   <testCaseGuid>tc-logout-001</testCaseGuid>
+</TestCaseEntity>

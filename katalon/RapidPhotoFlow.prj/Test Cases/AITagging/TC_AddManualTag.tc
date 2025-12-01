@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseEntity>
+   <description>Test adding manual tags to a photo</description>
+   <name>TC_AddManualTag</name>
+   <tag>tagging,photos,manual</tag>
+   <comment></comment>
+   <testCaseGuid>tc-tag-manual-001</testCaseGuid>
+</TestCaseEntity>

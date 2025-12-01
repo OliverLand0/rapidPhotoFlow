@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Project>
+   <projectId>RapidPhotoFlow</projectId>
+   <name>RapidPhotoFlow</name>
+   <uuid>rpf-test-automation-001</uuid>
+   <description>End-to-end test automation suite for RapidPhotoFlow photo management application</description>
+   <tag></tag>
+   <projectFileVersion>1.1</projectFileVersion>
+   <propertiesPlugins>
+   </propertiesPlugins>
+   <pageLoadTimeout>30</pageLoadTimeout>
+   <enableStepDescription>true</enableStepDescription>
+   <type>WEBUI</type>
+   <entityNameSeperator>_</entityNameSeperator>
+   <migratedTo550>true</migratedTo550>
+</Project>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseEntity>
+   <description>Test API health check endpoint</description>
+   <name>TC_API_HealthCheck</name>
+   <tag>api,health,smoke</tag>
+   <comment></comment>
+   <testCaseGuid>tc-api-health-001</testCaseGuid>
+</TestCaseEntity>

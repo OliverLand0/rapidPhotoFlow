@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCaseEntity>
+   <description>Test removing tags from a photo</description>
+   <name>TC_RemoveTag</name>
+   <tag>tagging,photos</tag>
+   <comment></comment>
+   <testCaseGuid>tc-tag-remove-001</testCaseGuid>
+</TestCaseEntity>
