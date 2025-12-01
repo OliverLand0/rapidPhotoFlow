@@ -8,10 +8,16 @@ export interface SyncUserRequest {
   username: string;
 }
 
+export type UserRole = "USER" | "ADMIN";
+export type UserStatus = "ACTIVE" | "SUSPENDED" | "PENDING" | "DELETED";
+
 export interface UserDTO {
   id: string;
   email: string;
   username: string;
+  role: UserRole;
+  status: UserStatus;
+  lastLoginAt: string | null;
   createdAt: string;
 }
 

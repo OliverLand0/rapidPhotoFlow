@@ -14,8 +14,9 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserDTO {
+public class AdminUserDetailDTO {
 
+    // Basic user info
     private UUID id;
     private String email;
     private String username;
@@ -23,4 +24,13 @@ public class UserDTO {
     private UserStatus status;
     private Instant lastLoginAt;
     private Instant createdAt;
+
+    // User settings/limits
+    private Long maxStorageBytes;
+    private Integer maxPhotos;
+    private Boolean aiTaggingEnabled;
+    private String accountNotes;
+
+    // Usage statistics
+    private UserUsageStatsDTO usageStats;
 }

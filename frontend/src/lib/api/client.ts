@@ -20,6 +20,12 @@ import type {
   PublicShareResponse,
   PublicPhoto,
   VerifyPasswordResponse,
+  AdminUserListResponse,
+  AdminUserDetail,
+  AdminDashboardStats,
+  AdminAuditLogListResponse,
+  AdminAuditLog,
+  UpdateUserSettingsRequest,
 } from "./types";
 import { getAccessToken } from "../auth/cognitoConfig";
 
@@ -559,6 +565,49 @@ export const publicShareClient = {
       throw new Error(`Failed to get photos: ${response.status}`);
     }
     return response.json();
+  },
+};
+
+// Admin client for admin management endpoints
+export const adminClient = {
+  async getDashboardStats(): Promise<AdminDashboardStats> {
+    return fetchJson<AdminDashboardStats>(`${API_BASE}/admin/dashboard`);
+  },
+
+  async getAllUsers(): Promise<AdminUserListResponse> {
+    return fetchJson<AdminUserListResponse>(`${API_BASE}/admin/users`);
+  },
+
+  async getUserDetail(userId: string): Promise<AdminUserDetail> {
+    return fetchJson<AdminUserDetail>(`${API_BASE}/admin/users/${userId}`);
+  },
+
+  async updateUserSettings(userId: string, request: UpdateUserSettingsRequest): Promise<AdminUserDetail> {
+    return fetchJson<AdminUserDetail>(`${API_BASE}/admin/users/${userId}/settings`, {
+      method: "PUT",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async suspendUser(userId: string, reason?: string): Promise<AdminUserDetail> {
+    return fetchJson<AdminUserDetail>(`${API_BASE}/admin/users/${userId}/suspend`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  async reactivateUser(userId: string): Promise<AdminUserDetail> {
+    return fetchJson<AdminUserDetail>(`${API_BASE}/admin/users/${userId}/reactivate`, {
+      method: "POST",
+    });
+  },
+
+  async getAuditLog(page: number = 0, size: number = 50): Promise<AdminAuditLogListResponse> {
+    return fetchJson<AdminAuditLogListResponse>(`${API_BASE}/admin/audit-log?page=${page}&size=${size}`);
+  },
+
+  async getUserAuditLog(userId: string): Promise<AdminAuditLog[]> {
+    return fetchJson<AdminAuditLog[]>(`${API_BASE}/admin/users/${userId}/audit-log`);
   },
 };
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Link, Outlet } from "react-router-dom";
-import { Upload, Grid3X3, Info, User, LogIn, Share2 } from "lucide-react";
+import { Upload, Grid3X3, Info, User, LogIn, Share2, Shield } from "lucide-react";
 import { cn } from "../lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { StatusSummaryBar } from "./shared/StatusSummaryBar";
@@ -16,7 +16,7 @@ const navItems = [
 
 export function Layout() {
   const { photos, lastUpdated, uploadingCount } = usePhotos();
-  const { user, isAuthenticated, isConfigured } = useAuth();
+  const { user, isAuthenticated, isConfigured, isAdmin } = useAuth();
   const [aboutOpen, setAboutOpen] = useState(false);
 
   return (
@@ -61,8 +61,17 @@ export function Layout() {
               ))}
             </nav>
           </div>
-          {/* Right side: User + Theme Toggle */}
+          {/* Right side: Admin + User + Theme Toggle */}
           <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Shield className="h-4 w-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </Link>
+            )}
             {isConfigured && (
               isAuthenticated && user ? (
                 <Link
