@@ -23,3 +23,48 @@ export function PhotoCardSkeleton() {
     </div>
   );
 }
+
+export function TableRowSkeleton() {
+  return (
+    <tr>
+      <td className="p-2">
+        <Skeleton className="h-4 w-full" />
+      </td>
+      <td className="p-2">
+        <Skeleton className="h-4 w-full" />
+      </td>
+      <td className="p-2">
+        <Skeleton className="h-4 w-full" />
+      </td>
+    </tr>
+  );
+}
+
+interface TableSkeletonProps {
+  rows?: number;
+}
+
+export function TableSkeleton({ rows = 5 }: TableSkeletonProps) {
+  return (
+    <table className="w-full">
+      <thead>
+        <tr>
+          <th className="p-2 text-left">
+            <Skeleton className="h-4 w-20" />
+          </th>
+          <th className="p-2 text-left">
+            <Skeleton className="h-4 w-20" />
+          </th>
+          <th className="p-2 text-left">
+            <Skeleton className="h-4 w-20" />
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {Array.from({ length: rows }).map((_, index) => (
+          <TableRowSkeleton key={index} />
+        ))}
+      </tbody>
+    </table>
+  );
+}

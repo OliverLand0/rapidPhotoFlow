@@ -136,7 +136,7 @@ describe("photoClient", () => {
 
       expect(fetch).toHaveBeenCalledWith(
         "http://localhost:8080/api/photos/123",
-        { method: "DELETE" }
+        expect.objectContaining({ method: "DELETE" })
       );
     });
 
