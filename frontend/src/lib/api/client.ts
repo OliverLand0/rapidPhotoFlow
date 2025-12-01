@@ -6,6 +6,20 @@ import type {
   PhotoStatus,
   StatusCount,
   BulkActionResponse,
+  Folder,
+  FolderListResponse,
+  CreateFolderRequest,
+  Album,
+  AlbumListResponse,
+  CreateAlbumRequest,
+  UpdateAlbumRequest,
+  SharedLink,
+  SharedLinkListResponse,
+  CreateShareRequest,
+  UpdateShareRequest,
+  PublicShareResponse,
+  PublicPhoto,
+  VerifyPasswordResponse,
 } from "./types";
 import { getAccessToken } from "../auth/cognitoConfig";
 
@@ -295,6 +309,256 @@ export const seedClient = {
     if (!response.ok) {
       throw new Error(`Failed to clear data: ${response.status}`);
     }
+  },
+};
+
+export const folderClient = {
+  async getFolderTree(): Promise<FolderListResponse> {
+    return fetchJson<FolderListResponse>(`${API_BASE}/folders`);
+  },
+
+  async getFolderById(id: string): Promise<Folder> {
+    return fetchJson<Folder>(`${API_BASE}/folders/${id}`);
+  },
+
+  async getFolderPath(id: string): Promise<FolderListResponse> {
+    return fetchJson<FolderListResponse>(`${API_BASE}/folders/${id}/path`);
+  },
+
+  async createFolder(request: CreateFolderRequest): Promise<Folder> {
+    return fetchJson<Folder>(`${API_BASE}/folders`, {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async renameFolder(id: string, name: string): Promise<Folder> {
+    return fetchJson<Folder>(`${API_BASE}/folders/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  async moveFolder(id: string, parentId: string | null): Promise<Folder> {
+    return fetchJson<Folder>(`${API_BASE}/folders/${id}/move`, {
+      method: "PUT",
+      body: JSON.stringify({ parentId }),
+    });
+  },
+
+  async deleteFolder(id: string, deleteContents: boolean = false): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(
+      `${API_BASE}/folders/${id}?deleteContents=${deleteContents}`,
+      {
+        method: "DELETE",
+        headers: authHeaders,
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to delete folder: ${response.status}`);
+    }
+  },
+
+  async movePhotosToFolder(folderId: string | null, photoIds: string[]): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const url = folderId
+      ? `${API_BASE}/folders/${folderId}/photos`
+      : `${API_BASE}/folders/root/photos`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify({ photoIds }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to move photos: ${response.status}`);
+    }
+  },
+};
+
+export const albumClient = {
+  async getAlbums(): Promise<AlbumListResponse> {
+    return fetchJson<AlbumListResponse>(`${API_BASE}/albums`);
+  },
+
+  async getAlbumById(id: string): Promise<Album> {
+    return fetchJson<Album>(`${API_BASE}/albums/${id}`);
+  },
+
+  async getPhotosInAlbum(id: string): Promise<PhotoListResponse> {
+    return fetchJson<PhotoListResponse>(`${API_BASE}/albums/${id}/photos`);
+  },
+
+  async createAlbum(request: CreateAlbumRequest): Promise<Album> {
+    return fetchJson<Album>(`${API_BASE}/albums`, {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async updateAlbum(id: string, request: UpdateAlbumRequest): Promise<Album> {
+    return fetchJson<Album>(`${API_BASE}/albums/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async deleteAlbum(id: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/albums/${id}`, {
+      method: "DELETE",
+      headers: authHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete album: ${response.status}`);
+    }
+  },
+
+  async addPhotosToAlbum(id: string, photoIds: string[]): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/albums/${id}/photos`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify({ photoIds }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to add photos to album: ${response.status}`);
+    }
+  },
+
+  async removePhotosFromAlbum(id: string, photoIds: string[]): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/albums/${id}/photos`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify({ photoIds }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to remove photos from album: ${response.status}`);
+    }
+  },
+
+  async setCoverPhoto(albumId: string, photoId: string): Promise<Album> {
+    return fetchJson<Album>(`${API_BASE}/albums/${albumId}/cover`, {
+      method: "PUT",
+      body: JSON.stringify({ photoId }),
+    });
+  },
+};
+
+// Share client for authenticated share management
+export const shareClient = {
+  async getShares(): Promise<SharedLinkListResponse> {
+    return fetchJson<SharedLinkListResponse>(`${API_BASE}/shares`);
+  },
+
+  async getShareById(id: string): Promise<SharedLink> {
+    return fetchJson<SharedLink>(`${API_BASE}/shares/${id}`);
+  },
+
+  async createShare(request: CreateShareRequest): Promise<SharedLink> {
+    return fetchJson<SharedLink>(`${API_BASE}/shares`, {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async updateShare(id: string, request: UpdateShareRequest): Promise<SharedLink> {
+    return fetchJson<SharedLink>(`${API_BASE}/shares/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async deleteShare(id: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/shares/${id}`, {
+      method: "DELETE",
+      headers: authHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete share: ${response.status}`);
+    }
+  },
+
+  async deactivateShare(id: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/shares/${id}/deactivate`, {
+      method: "PUT",
+      headers: authHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to deactivate share: ${response.status}`);
+    }
+  },
+
+  async activateShare(id: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/shares/${id}/activate`, {
+      method: "PUT",
+      headers: authHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to activate share: ${response.status}`);
+    }
+  },
+
+  async getSharesForPhoto(photoId: string): Promise<SharedLinkListResponse> {
+    return fetchJson<SharedLinkListResponse>(`${API_BASE}/shares/photo/${photoId}`);
+  },
+};
+
+// Public share client (no auth required)
+const PUBLIC_SHARE_BASE = isDev ? "http://localhost:8080/s" : "/s";
+
+export const publicShareClient = {
+  async getShareInfo(token: string): Promise<PublicShareResponse> {
+    const response = await fetch(`${PUBLIC_SHARE_BASE}/${token}`);
+    if (!response.ok) {
+      throw new Error(`Failed to get share info: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  async verifyPassword(token: string, password: string): Promise<VerifyPasswordResponse> {
+    const response = await fetch(`${PUBLIC_SHARE_BASE}/${token}/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to verify password: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  getPhotoUrl(token: string): string {
+    return `${PUBLIC_SHARE_BASE}/${token}/photo`;
+  },
+
+  getThumbnailUrl(token: string): string {
+    return `${PUBLIC_SHARE_BASE}/${token}/thumbnail`;
+  },
+
+  getDownloadUrl(token: string): string {
+    return `${PUBLIC_SHARE_BASE}/${token}/download`;
+  },
+
+  async getPhotos(token: string): Promise<PublicPhoto[]> {
+    const response = await fetch(`${PUBLIC_SHARE_BASE}/${token}/photos`);
+    if (!response.ok) {
+      throw new Error(`Failed to get photos: ${response.status}`);
+    }
+    return response.json();
   },
 };
 
