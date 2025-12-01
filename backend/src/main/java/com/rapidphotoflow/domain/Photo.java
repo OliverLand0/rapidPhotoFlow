@@ -25,6 +25,7 @@ public class Photo {
     private Instant updatedAt;
     private UUID uploadedByUserId;
     private String uploadedByUsername;
+    private UUID folderId;
     @Builder.Default
     private Set<String> tags = new HashSet<>();
 

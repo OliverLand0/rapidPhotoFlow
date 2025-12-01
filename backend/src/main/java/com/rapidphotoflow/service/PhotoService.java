@@ -116,6 +116,39 @@ public class PhotoService {
                 .collect(Collectors.toList());
     }
 
+    public List<Photo> getPhotosByIds(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return photoRepository.findAllById(ids).stream()
+                .map(e -> entityToPhoto(e, null))
+                .collect(Collectors.toList());
+    }
+
+    public List<Photo> getPhotosByFolderId(UUID folderId) {
+        List<PhotoEntity> entities;
+        if (folderId == null) {
+            entities = photoRepository.findByFolderIdIsNullOrderByUploadedAtDesc();
+        } else {
+            entities = photoRepository.findByFolderIdOrderByUploadedAtDesc(folderId);
+        }
+        return entities.stream()
+                .map(e -> entityToPhoto(e, null))
+                .collect(Collectors.toList());
+    }
+
+    public List<Photo> getPhotosByFolderIdAndStatus(UUID folderId, PhotoStatus status) {
+        List<PhotoEntity> entities;
+        if (folderId == null) {
+            entities = photoRepository.findByFolderIdIsNullAndStatusOrderByUploadedAtDesc(status);
+        } else {
+            entities = photoRepository.findByFolderIdAndStatusOrderByUploadedAtDesc(folderId, status);
+        }
+        return entities.stream()
+                .map(e -> entityToPhoto(e, null))
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public Photo approve(UUID photoId) {
         PhotoEntity entity = photoRepository.findById(photoId)
@@ -329,6 +362,7 @@ public class PhotoService {
                 .updatedAt(entity.getUpdatedAt())
                 .uploadedByUserId(entity.getUploadedByUserId())
                 .uploadedByUsername(username)
+                .folderId(entity.getFolderId())
                 .tags(entity.getTags() != null ? new HashSet<>(entity.getTags()) : new HashSet<>())
                 .build();
     }

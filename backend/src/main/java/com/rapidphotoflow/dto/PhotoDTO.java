@@ -23,6 +23,7 @@ public class PhotoDTO {
     private Instant updatedAt;
     private List<String> tags;
     private String uploadedByUsername;
+    private UUID folderId;
 
     public static PhotoDTO fromEntity(Photo photo) {
         return PhotoDTO.builder()
@@ -36,6 +37,7 @@ public class PhotoDTO {
                 .updatedAt(photo.getUpdatedAt())
                 .tags(photo.getTags() != null ? new ArrayList<>(photo.getTags()) : new ArrayList<>())
                 .uploadedByUsername(photo.getUploadedByUsername())
+                .folderId(photo.getFolderId())
                 .build();
     }
 }

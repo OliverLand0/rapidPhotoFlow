@@ -50,16 +50,37 @@ public class PhotoController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all photos", description = "Retrieve all photos with optional status and tag filters")
+    @Operation(summary = "Get all photos", description = "Retrieve all photos with optional status, tag, and folder filters")
     public ResponseEntity<PhotoListResponse> getPhotos(
             @RequestParam(required = false) PhotoStatus status,
-            @RequestParam(required = false) String tag) {
+            @RequestParam(required = false) String tag,
+            @RequestParam(required = false) UUID folderId,
+            @RequestParam(required = false, defaultValue = "false") boolean rootOnly) {
 
         List<Photo> photos;
-        if (status != null) {
-            photos = photoService.getPhotosByStatus(status);
+
+        // Handle folder filtering
+        if (rootOnly) {
+            // Get photos at root level (no folder)
+            if (status != null) {
+                photos = photoService.getPhotosByFolderIdAndStatus(null, status);
+            } else {
+                photos = photoService.getPhotosByFolderId(null);
+            }
+        } else if (folderId != null) {
+            // Get photos in specific folder
+            if (status != null) {
+                photos = photoService.getPhotosByFolderIdAndStatus(folderId, status);
+            } else {
+                photos = photoService.getPhotosByFolderId(folderId);
+            }
         } else {
-            photos = photoService.getAllPhotos();
+            // Get all photos (existing behavior)
+            if (status != null) {
+                photos = photoService.getPhotosByStatus(status);
+            } else {
+                photos = photoService.getAllPhotos();
+            }
         }
 
         // Apply tag filter if provided

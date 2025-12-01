@@ -54,6 +54,9 @@ public class PhotoEntity {
     @Column(name = "uploaded_by_user_id")
     private UUID uploadedByUserId;
 
+    @Column(name = "folder_id")
+    private UUID folderId;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "photo_tags", joinColumns = @JoinColumn(name = "photo_id"))
     @Column(name = "tag")

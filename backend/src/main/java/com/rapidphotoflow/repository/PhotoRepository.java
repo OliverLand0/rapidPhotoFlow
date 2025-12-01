@@ -18,4 +18,27 @@ public interface PhotoRepository extends JpaRepository<PhotoEntity, UUID> {
     List<PhotoEntity> findAllByOrderByUploadedAtDesc();
 
     long countByStatus(PhotoStatus status);
+
+    // Folder-related queries
+    List<PhotoEntity> findByFolderIdOrderByUploadedAtDesc(UUID folderId);
+
+    List<PhotoEntity> findByFolderIdIsNullOrderByUploadedAtDesc();
+
+    List<PhotoEntity> findByFolderId(UUID folderId);
+
+    long countByFolderId(UUID folderId);
+
+    long countByFolderIdIsNull();
+
+    // Combined filters
+    List<PhotoEntity> findByFolderIdAndStatusOrderByUploadedAtDesc(UUID folderId, PhotoStatus status);
+
+    List<PhotoEntity> findByFolderIdIsNullAndStatusOrderByUploadedAtDesc(PhotoStatus status);
+
+    // User-specific queries
+    List<PhotoEntity> findByUploadedByUserIdOrderByUploadedAtDesc(UUID userId);
+
+    List<PhotoEntity> findByUploadedByUserIdAndFolderIdOrderByUploadedAtDesc(UUID userId, UUID folderId);
+
+    List<PhotoEntity> findByUploadedByUserIdAndFolderIdIsNullOrderByUploadedAtDesc(UUID userId);
 }
