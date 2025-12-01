@@ -37,11 +37,12 @@ public class PhotoController {
     private final PhotoService photoService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload photos", description = "Upload one or more photos for processing")
+    @Operation(summary = "Upload photos", description = "Upload one or more photos for processing. Optionally convert incompatible formats for AI tagging.")
     public ResponseEntity<PhotoListResponse> uploadPhotos(
-            @RequestParam("files") List<MultipartFile> files) {
+            @RequestParam("files") List<MultipartFile> files,
+            @RequestParam(value = "convertToCompatible", defaultValue = "true") boolean convertToCompatible) {
 
-        List<Photo> photos = photoService.uploadPhotos(files);
+        List<Photo> photos = photoService.uploadPhotos(files, convertToCompatible);
         List<PhotoDTO> dtos = photos.stream()
                 .map(PhotoDTO::fromEntity)
                 .collect(Collectors.toList());

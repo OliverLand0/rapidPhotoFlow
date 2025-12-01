@@ -47,6 +47,10 @@ export interface Photo {
   tags: string[];
   uploadedByUsername?: string | null;
   folderId?: string | null;
+  originalMimeType?: string | null;
+  isChatGptCompatible?: boolean;
+  wasConverted?: boolean;
+  aiTaggingEnabled?: boolean;
 }
 
 export interface EventLog {

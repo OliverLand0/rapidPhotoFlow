@@ -24,6 +24,10 @@ public class PhotoDTO {
     private List<String> tags;
     private String uploadedByUsername;
     private UUID folderId;
+    private String originalMimeType;
+    private Boolean isChatGptCompatible;
+    private Boolean wasConverted;
+    private Boolean aiTaggingEnabled;
 
     public static PhotoDTO fromEntity(Photo photo) {
         return PhotoDTO.builder()
@@ -38,6 +42,10 @@ public class PhotoDTO {
                 .tags(photo.getTags() != null ? new ArrayList<>(photo.getTags()) : new ArrayList<>())
                 .uploadedByUsername(photo.getUploadedByUsername())
                 .folderId(photo.getFolderId())
+                .originalMimeType(photo.getOriginalMimeType())
+                .isChatGptCompatible(photo.getIsChatGptCompatible())
+                .wasConverted(photo.getWasConverted())
+                .aiTaggingEnabled(photo.getAiTaggingEnabled())
                 .build();
     }
 }

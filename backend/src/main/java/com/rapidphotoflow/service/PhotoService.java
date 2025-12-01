@@ -32,9 +32,24 @@ public class PhotoService {
     private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
     private final SharedLinkRepository sharedLinkRepository;
+    private final ImageConversionService imageConversionService;
 
+    /**
+     * Upload photos with default conversion enabled
+     */
     @Transactional
     public List<Photo> uploadPhotos(List<MultipartFile> files) {
+        return uploadPhotos(files, true);
+    }
+
+    /**
+     * Upload photos with optional image conversion for AI compatibility
+     *
+     * @param files List of files to upload
+     * @param convertToCompatible If true, convert incompatible formats to JPEG/PNG for AI tagging
+     */
+    @Transactional
+    public List<Photo> uploadPhotos(List<MultipartFile> files, boolean convertToCompatible) {
         List<Photo> uploadedPhotos = new ArrayList<>();
 
         // Get current user from security context
@@ -43,34 +58,66 @@ public class PhotoService {
         for (MultipartFile file : files) {
             try {
                 byte[] content = file.getBytes();
+                String originalMimeType = file.getContentType();
+                String finalMimeType = originalMimeType;
+                long finalSize = file.getSize();
+                boolean wasConverted = false;
+                boolean isChatGptCompatible = imageConversionService.isChatGptCompatible(originalMimeType);
+
+                // Attempt conversion if needed and requested
+                if (!isChatGptCompatible && convertToCompatible && imageConversionService.isConvertible(originalMimeType)) {
+                    ImageConversionService.ConversionResult result = imageConversionService.convert(content, originalMimeType);
+                    if (result.isSuccess()) {
+                        content = result.getData();
+                        finalMimeType = result.getNewMimeType();
+                        finalSize = content.length;
+                        wasConverted = true;
+                        isChatGptCompatible = true;
+                        log.info("Converted {} from {} to {}", file.getOriginalFilename(), originalMimeType, finalMimeType);
+                    } else {
+                        log.warn("Conversion failed for {}: {}", file.getOriginalFilename(), result.getErrorMessage());
+                    }
+                }
+
+                // AI tagging is enabled only if the stored format is compatible
+                boolean aiTaggingEnabled = isChatGptCompatible;
+
                 String contentHash = computeHash(content);
                 UUID photoId = UUID.randomUUID();
                 Instant now = Instant.now();
 
                 // Upload to S3
-                String s3Key = s3StorageService.uploadPhoto(photoId, content, file.getContentType());
+                String s3Key = s3StorageService.uploadPhoto(photoId, content, finalMimeType);
 
                 // Save metadata to database
                 PhotoEntity entity = PhotoEntity.builder()
                         .id(photoId)
                         .filename(file.getOriginalFilename())
-                        .mimeType(file.getContentType())
-                        .sizeBytes(file.getSize())
+                        .mimeType(finalMimeType)
+                        .originalMimeType(originalMimeType)
+                        .sizeBytes(finalSize)
                         .contentHash(contentHash)
                         .s3Key(s3Key)
                         .status(PhotoStatus.PENDING)
                         .uploadedAt(now)
                         .updatedAt(now)
                         .uploadedByUserId(currentUserId)
+                        .isChatGptCompatible(isChatGptCompatible)
+                        .wasConverted(wasConverted)
+                        .aiTaggingEnabled(aiTaggingEnabled)
                         .tags(new HashSet<>())
                         .build();
 
                 photoRepository.save(entity);
-                eventService.logEvent(photoId, EventType.PHOTO_CREATED,
-                        "Photo uploaded: " + entity.getFilename());
+
+                String eventMessage = wasConverted
+                        ? String.format("Photo uploaded and converted: %s (%s -> %s)", entity.getFilename(), originalMimeType, finalMimeType)
+                        : "Photo uploaded: " + entity.getFilename();
+                eventService.logEvent(photoId, EventType.PHOTO_CREATED, eventMessage);
 
                 uploadedPhotos.add(entityToPhoto(entity, null));
-                log.info("Photo uploaded: {} ({})", entity.getFilename(), photoId);
+                log.info("Photo uploaded: {} ({}) - compatible: {}, converted: {}",
+                        entity.getFilename(), photoId, isChatGptCompatible, wasConverted);
             } catch (IOException e) {
                 log.error("Failed to upload photo: {}", file.getOriginalFilename(), e);
             }
@@ -361,6 +408,10 @@ public class PhotoService {
                 .uploadedByUserId(entity.getUploadedByUserId())
                 .uploadedByUsername(username)
                 .folderId(entity.getFolderId())
+                .originalMimeType(entity.getOriginalMimeType())
+                .isChatGptCompatible(entity.getIsChatGptCompatible())
+                .wasConverted(entity.getWasConverted())
+                .aiTaggingEnabled(entity.getAiTaggingEnabled())
                 .tags(entity.getTags() != null ? new HashSet<>(entity.getTags()) : new HashSet<>())
                 .build();
     }

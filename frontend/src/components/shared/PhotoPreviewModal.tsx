@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Check, XCircle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles, Keyboard, Share2 } from "lucide-react";
+import { X, Check, XCircle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles, Keyboard, Share2, AlertCircle } from "lucide-react";
 import { Button } from "../ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { TagEditor } from "./TagEditor";
@@ -201,8 +201,8 @@ export function PhotoPreviewModal({
           }
           break;
         case "i":
-          // AI Auto-tag
-          if (!isAutoTagging) {
+          // AI Auto-tag (only if enabled for this photo)
+          if (!isAutoTagging && photo.aiTaggingEnabled !== false) {
             e.preventDefault();
             handleAutoTag();
           }
@@ -329,21 +329,45 @@ export function PhotoPreviewModal({
               <div className="pt-2 border-t border-border">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Tags</p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-xs"
-                    onClick={handleAutoTag}
-                    disabled={isAutoTagging}
-                  >
-                    {isAutoTagging ? (
-                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3 w-3 mr-1" />
+                  <div className="relative group">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-6 px-2 text-xs ${photo.aiTaggingEnabled === false ? "opacity-50 cursor-not-allowed" : ""}`}
+                      onClick={handleAutoTag}
+                      disabled={isAutoTagging || photo.aiTaggingEnabled === false}
+                    >
+                      {isAutoTagging ? (
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                      ) : photo.aiTaggingEnabled === false ? (
+                        <AlertCircle className="h-3 w-3 mr-1 text-muted-foreground" />
+                      ) : (
+                        <Sparkles className="h-3 w-3 mr-1" />
+                      )}
+                      Auto-tag
+                    </Button>
+                    {/* Tooltip for disabled state */}
+                    {photo.aiTaggingEnabled === false && (
+                      <div className="absolute right-0 bottom-full mb-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        <p className="text-muted-foreground">
+                          Format not compatible with AI tagging
+                        </p>
+                        {photo.originalMimeType && (
+                          <p className="text-muted-foreground/70 text-[10px]">
+                            Original: {photo.originalMimeType}
+                          </p>
+                        )}
+                      </div>
                     )}
-                    Auto-tag
-                  </Button>
+                  </div>
                 </div>
+                {/* Show warning if AI tagging is disabled for this photo */}
+                {photo.aiTaggingEnabled === false && (
+                  <div className="mb-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+                    <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span>This photo's format ({photo.mimeType}) is not compatible with AI tagging. Re-upload with conversion enabled.</span>
+                  </div>
+                )}
                 <TagEditor photo={photo} onPhotoUpdate={onPhotoUpdate} />
               </div>
             </div>
