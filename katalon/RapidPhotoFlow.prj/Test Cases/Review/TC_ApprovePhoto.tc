@@ -4,5 +4,12 @@
    <name>TC_ApprovePhoto</name>
    <tag>review,approve,photos,workflow</tag>
    <comment></comment>
-   <testCaseGuid>tc-review-approve-001</testCaseGuid>
+   <testCaseGuid>d290f1ee-6c54-4b01-90e6-d701748f0013</testCaseGuid>
+   <isDataDrivenTest>false</isDataDrivenTest>
+   <migratedVersion>8.0.0</migratedVersion>
+   <record>false</record>
+   <testDataLinks>
+   </testDataLinks>
+   <variableLinks>
+   </variableLinks>
 </TestCaseEntity>

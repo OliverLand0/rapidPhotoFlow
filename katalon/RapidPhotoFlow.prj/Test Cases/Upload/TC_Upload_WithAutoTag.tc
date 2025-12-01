@@ -4,5 +4,12 @@
    <name>TC_Upload_WithAutoTag</name>
    <tag>upload,photos,ai,tagging</tag>
    <comment></comment>
-   <testCaseGuid>tc-upload-autotag-001</testCaseGuid>
+   <testCaseGuid>d290f1ee-6c54-4b01-90e6-d701748f0007</testCaseGuid>
+   <isDataDrivenTest>false</isDataDrivenTest>
+   <migratedVersion>8.0.0</migratedVersion>
+   <record>false</record>
+   <testDataLinks>
+   </testDataLinks>
+   <variableLinks>
+   </variableLinks>
 </TestCaseEntity>

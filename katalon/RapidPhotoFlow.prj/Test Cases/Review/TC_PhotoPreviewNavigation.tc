@@ -4,5 +4,12 @@
    <name>TC_PhotoPreviewNavigation</name>
    <tag>review,preview,navigation,photos</tag>
    <comment></comment>
-   <testCaseGuid>tc-review-preview-nav-001</testCaseGuid>
+   <testCaseGuid>d290f1ee-6c54-4b01-90e6-d701748f0015</testCaseGuid>
+   <isDataDrivenTest>false</isDataDrivenTest>
+   <migratedVersion>8.0.0</migratedVersion>
+   <record>false</record>
+   <testDataLinks>
+   </testDataLinks>
+   <variableLinks>
+   </variableLinks>
 </TestCaseEntity>

@@ -4,5 +4,12 @@
    <name>TC_Logout</name>
    <tag>authentication,logout,smoke</tag>
    <comment></comment>
-   <testCaseGuid>tc-logout-001</testCaseGuid>
+   <testCaseGuid>d290f1ee-6c54-4b01-90e6-d701748f0003</testCaseGuid>
+   <isDataDrivenTest>false</isDataDrivenTest>
+   <migratedVersion>8.0.0</migratedVersion>
+   <record>false</record>
+   <testDataLinks>
+   </testDataLinks>
+   <variableLinks>
+   </variableLinks>
 </TestCaseEntity>
