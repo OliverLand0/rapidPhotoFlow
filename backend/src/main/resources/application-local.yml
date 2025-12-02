@@ -11,8 +11,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          # Disable JWT validation for local dev (empty issuer-uri disables JWT)
-          issuer-uri:
+          # Use real Cognito for JWT validation in local dev
+          issuer-uri: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_zcv67JD3G
 
 # Override S3 to use LocalStack
 aws:

@@ -82,7 +82,17 @@
       "Bash(cat:*)",
       "Bash(git rm:*)",
       "Bash(aws secretsmanager put-secret-value:*)",
-      "Bash(mvn clean package:*)"
+      "Bash(mvn clean package:*)",
+      "Bash(pkill:*)",
+      "Bash(PGPASSWORD='Hzgv&t2?$YV91xEaaL!bWclu+N:j?%5k' psql:*)",
+      "Bash(PGPASSWORD='postgres' psql:*)",
+      "Bash(AWS_ACCESS_KEY_ID= AWS_SECRET_ACCESS_KEY= AWS_SESSION_TOKEN= aws logs tail:*)",
+      "Bash(AWS_ACCESS_KEY_ID=\"\" AWS_SECRET_ACCESS_KEY=\"\" AWS_SESSION_TOKEN=\"\" aws ecr get-login-password:*)",
+      "Bash(AWS_ACCESS_KEY_ID=\"\" AWS_SECRET_ACCESS_KEY=\"\" AWS_SESSION_TOKEN=\"\" aws ecs:*)",
+      "Bash(AWS_ACCESS_KEY_ID=\"\" AWS_SECRET_ACCESS_KEY=\"\" AWS_SESSION_TOKEN=\"\" aws ecs list-services:*)",
+      "Bash(AWS_ACCESS_KEY_ID=\"\" AWS_SECRET_ACCESS_KEY=\"\" AWS_SESSION_TOKEN=\"\" aws logs:*)",
+      "Bash(AWS_ACCESS_KEY_ID=\"\" AWS_SECRET_ACCESS_KEY=\"\" AWS_SESSION_TOKEN=\"\" aws ecs describe-services:*)",
+      "Bash(AWS_ACCESS_KEY_ID=\"\" AWS_SECRET_ACCESS_KEY=\"\" AWS_SESSION_TOKEN=\"\" aws ecs list-tasks:*)"
     ],
     "deny": [],
     "ask": []

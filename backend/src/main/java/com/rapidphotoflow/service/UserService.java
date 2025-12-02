@@ -138,6 +138,7 @@ public class UserService {
             .status(entity.getStatus())
             .lastLoginAt(entity.getLastLoginAt())
             .createdAt(entity.getCreatedAt())
+            .aiTaggingEnabled(entity.getAiTaggingEnabled())
             .build();
     }
 

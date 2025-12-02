@@ -12,7 +12,7 @@ This document explains the full infrastructure architecture for the RapidPhotoFl
 2. Frontend calls Backend API through API Gateway → ALB → ECS service.
 3. Backend stores photo metadata in RDS and files in S3.
 4. Backend forwards image bytes to the AI Tagging Service (separate ECS task).
-5. AI service calls OpenAI Vision/Embeddings to generate tags.
+5. AI service calls OpenAI GPT-4o-mini Vision API to generate tags.
 6. Tags are stored in RDS and returned to the user.
 7. User reviews, filters, and manages photos in the Review UI.
 
@@ -96,10 +96,11 @@ You run two services on ECS:
 - Communicates with RDS and S3
 - Exposed behind ALB → API Gateway
 
-**B. AI Tagging Service (Node/OpenAI)**
+**B. AI Tagging Service (Node.js/OpenAI)**
 - Receives raw image bytes from backend
-- Calls OpenAI APIs to generate tags
+- Calls OpenAI GPT-4o-mini Vision API to generate tags
 - Returns tag suggestions via REST
+- Handles rate limiting and retries gracefully
 
 **Why ECS Fargate?**
 - No need to manage servers

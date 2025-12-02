@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload, Sparkles, AlertTriangle, RefreshCw, Info } from "lucide-react";
+import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload, Sparkles, AlertTriangle, RefreshCw, Info, HelpCircle, ShieldAlert } from "lucide-react";
 import { UploadDropzone } from "../features/photos/components/UploadDropzone";
 import { StatusBadge } from "../components/shared/StatusBadge";
 import { Button } from "../components/ui/button";
@@ -9,9 +9,11 @@ import { Progress } from "../components/ui/progress";
 import { Switch } from "../components/ui/switch";
 import { Dialog, DialogHeader, DialogContent } from "../components/ui/dialog";
 import { EmptyState } from "../components/shared/EmptyState";
+import { Tooltip } from "../components/ui/tooltip";
 import { photoClient, aiClient } from "../lib/api/client";
 import { usePhotos } from "../lib/PhotosContext";
 import { useAISettings } from "../hooks/useAISettings";
+import { useAuth } from "../contexts/AuthContext";
 import { formatRelativeTime, formatFileSize } from "../lib/utils";
 
 const BULK_UPLOAD_WARNING_THRESHOLD = 100;
@@ -27,6 +29,10 @@ export function UploadPage() {
   const navigate = useNavigate();
   const { photos, refresh, setUploadingCount } = usePhotos();
   const { autoTagOnUpload, setAutoTagOnUpload } = useAISettings();
+  const { aiTaggingEnabled: userAiTaggingEnabled } = useAuth();
+
+  // Check if AI tagging is disabled by admin
+  const isAiTaggingDisabledByAdmin = !userAiTaggingEnabled;
 
   // Upload state for preview
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
@@ -58,9 +64,9 @@ export function UploadPage() {
   // Calculate total storage used
   const totalStorageBytes = photos.reduce((acc, p) => acc + p.sizeBytes, 0);
 
-  // Auto-tag photos when they finish processing (if enabled)
+  // Auto-tag photos when they finish processing (if enabled and not admin-disabled)
   useEffect(() => {
-    if (!autoTagOnUpload) return;
+    if (!autoTagOnUpload || isAiTaggingDisabledByAdmin) return;
 
     // Find photos that are pending auto-tag and have finished processing
     const photosToTag = photos.filter(
@@ -83,7 +89,7 @@ export function UploadPage() {
         console.error(`Failed to auto-tag ${photo.filename}:`, error);
       }
     });
-  }, [photos, autoTagOnUpload, refresh]);
+  }, [photos, autoTagOnUpload, isAiTaggingDisabledByAdmin, refresh]);
 
   // Perform the actual upload (separated so it can be called after warning dialog)
   const performUpload = useCallback(
@@ -195,8 +201,11 @@ export function UploadPage() {
 
   const handleUpload = useCallback(
     async (files: File[], onProgress: (progress: number, speed: number) => void) => {
+      // If admin disabled AI tagging, don't show bulk warning and don't enable auto-tag
+      const effectiveAutoTag = autoTagOnUpload && !isAiTaggingDisabledByAdmin;
+
       // Check if we need to show bulk upload warning
-      if (autoTagOnUpload && files.length > BULK_UPLOAD_WARNING_THRESHOLD) {
+      if (effectiveAutoTag && files.length > BULK_UPLOAD_WARNING_THRESHOLD) {
         // Store pending files and callback for after user confirms
         setPendingFiles(files);
         pendingProgressCallback.current = onProgress;
@@ -205,9 +214,9 @@ export function UploadPage() {
       }
 
       // No warning needed, proceed with upload
-      await performUpload(files, onProgress, autoTagOnUpload, convertToCompatible);
+      await performUpload(files, onProgress, effectiveAutoTag, convertToCompatible);
     },
-    [autoTagOnUpload, convertToCompatible, performUpload]
+    [autoTagOnUpload, isAiTaggingDisabledByAdmin, convertToCompatible, performUpload]
   );
 
   // Handle bulk warning dialog actions
@@ -437,23 +446,62 @@ export function UploadPage() {
           </Card>
 
           {/* AI Auto-Tagging Toggle */}
-          <Card className="p-4">
+          <Card className={`p-4 ${isAiTaggingDisabledByAdmin ? "opacity-60" : ""}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
                 <h3 className="text-sm font-medium flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  {isAiTaggingDisabledByAdmin ? (
+                    <ShieldAlert className="h-4 w-4 text-slate-400" />
+                  ) : (
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                  )}
                   AI Auto-Tagging
+                  {!isAiTaggingDisabledByAdmin && (
+                    <Tooltip
+                      content={
+                        <div className="text-left space-y-1 min-w-[160px]">
+                          <p className="font-semibold">Supported formats:</p>
+                          <p>JPEG, PNG, WebP, GIF</p>
+                          <p className="text-xs text-zinc-400 border-t border-zinc-600 pt-1.5 mt-1.5">TIFF, BMP auto-convert when enabled</p>
+                        </div>
+                      }
+                    >
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-help" />
+                    </Tooltip>
+                  )}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Automatically tag photos on upload using AI
+                  {isAiTaggingDisabledByAdmin
+                    ? "Disabled by administrator"
+                    : "Automatically tag photos on upload using AI"}
                 </p>
               </div>
-              <Switch
-                checked={autoTagOnUpload}
-                onCheckedChange={setAutoTagOnUpload}
-              />
+              {isAiTaggingDisabledByAdmin ? (
+                <Tooltip content="AI tagging has been disabled by an administrator">
+                  <span>
+                    <Switch
+                      checked={false}
+                      onCheckedChange={() => {}}
+                      disabled={true}
+                    />
+                  </span>
+                </Tooltip>
+              ) : (
+                <Switch
+                  checked={autoTagOnUpload}
+                  onCheckedChange={setAutoTagOnUpload}
+                />
+              )}
             </div>
-            {autoTagOnUpload && (
+            {isAiTaggingDisabledByAdmin && (
+              <div className="mt-3 p-2 bg-slate-500/10 border border-slate-500/20 rounded-md">
+                <p className="text-xs text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
+                  <ShieldAlert className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                  AI tagging has been disabled by an administrator.
+                </p>
+              </div>
+            )}
+            {!isAiTaggingDisabledByAdmin && autoTagOnUpload && (
               <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded-md">
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   Note: AI tagging uses OpenAI API and incurs additional costs per image analyzed.

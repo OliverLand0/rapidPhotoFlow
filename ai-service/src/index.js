@@ -185,13 +185,13 @@ app.post('/ai/analyze-and-apply', async (req, res) => {
       });
     }
 
-    // Apply each tag to the photo via the backend API
+    // Apply each tag to the photo via the backend internal API (no auth required)
     const appliedTags = [];
     const failedTags = [];
 
     for (const tag of tags) {
       try {
-        const response = await fetch(`${BACKEND_URL}/api/photos/${photoId}/tags`, {
+        const response = await fetch(`${BACKEND_URL}/api/internal/photos/${photoId}/tags`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tag }),

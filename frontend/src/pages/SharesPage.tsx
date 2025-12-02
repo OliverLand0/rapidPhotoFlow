@@ -21,6 +21,16 @@ import { formatRelativeTime } from "../lib/utils";
 import type { SharedLink } from "../lib/api/types";
 import { useToast } from "../components/ui/toast";
 
+// Helper to resolve API URLs in development
+const resolveApiUrl = (url: string | null): string | null => {
+  if (!url) return null;
+  // In dev mode, prepend the backend URL for relative API paths
+  if (import.meta.env.DEV && url.startsWith("/api/")) {
+    return `http://localhost:8080${url}`;
+  }
+  return url;
+};
+
 type FilterOption = "all" | "active" | "expired" | "disabled";
 type SortOption = "newest" | "oldest" | "most-views" | "most-downloads";
 
@@ -269,7 +279,7 @@ export function SharesPage() {
                 <div className="w-full sm:w-20 h-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
                   {share.targetThumbnailUrl ? (
                     <img
-                      src={share.targetThumbnailUrl}
+                      src={resolveApiUrl(share.targetThumbnailUrl) || ""}
                       alt={share.targetName}
                       className="w-full h-full object-cover"
                     />

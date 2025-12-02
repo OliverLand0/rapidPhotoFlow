@@ -19,6 +19,7 @@ export interface UserDTO {
   status: UserStatus;
   lastLoginAt: string | null;
   createdAt: string;
+  aiTaggingEnabled: boolean | null;
 }
 
 export interface UpdateProfileRequest {

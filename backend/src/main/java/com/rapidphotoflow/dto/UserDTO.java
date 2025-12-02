@@ -23,4 +23,5 @@ public class UserDTO {
     private UserStatus status;
     private Instant lastLoginAt;
     private Instant createdAt;
+    private Boolean aiTaggingEnabled;
 }

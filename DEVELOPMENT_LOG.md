@@ -84,11 +84,11 @@ PENDING → PROCESSING → PROCESSED → APPROVED
 
 | Layer | Technology | Rationale |
 |-------|------------|-----------|
-| Frontend | React 18 + TypeScript + Vite | Fast dev experience, type safety |
-| Styling | TailwindCSS + shadcn/ui | Production-ready components |
+| Frontend | React 19 + TypeScript + Vite 7 | Fast dev experience, type safety |
+| Styling | TailwindCSS 4 + shadcn/ui | Production-ready components |
 | Backend | Spring Boot 3.2 (Java 21) | Enterprise-grade, DDD-friendly |
 | AI Service | Node.js + Express | Lightweight, OpenAI SDK support |
-| Storage | Initially in-memory | Fast iteration, later migrated |
+| Storage | Initially in-memory, migrated to RDS PostgreSQL + S3 | Fast iteration, then production-ready |
 
 ---
 

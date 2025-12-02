@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Check, XCircle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles, Keyboard, Share2, AlertCircle } from "lucide-react";
+import { X, Check, XCircle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles, Keyboard, Share2, AlertCircle, ShieldAlert } from "lucide-react";
 import { Button } from "../ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { TagEditor } from "./TagEditor";
 import { useToast } from "../ui/toast";
+import { useAuth } from "../../contexts/AuthContext";
 import { photoClient, aiClient } from "../../lib/api/client";
 import { formatFileSize, formatRelativeTime } from "../../lib/utils";
 import type { Photo } from "../../lib/api/types";
@@ -32,6 +33,12 @@ export function PhotoPreviewModal({
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const { toast } = useToast();
+  const { aiTaggingEnabled: userAiTaggingEnabled } = useAuth();
+
+  // Determine AI tagging disabled state and reason
+  const isAiTaggingDisabledByAdmin = !userAiTaggingEnabled;
+  const isAiTaggingDisabledByFormat = photo.aiTaggingEnabled === false;
+  const isAiTaggingDisabled = isAiTaggingDisabledByAdmin || isAiTaggingDisabledByFormat;
 
   const canApprove = photo.status === "PROCESSED" || photo.status === "REJECTED";
   const canReject = photo.status === "PROCESSED" || photo.status === "FAILED" || photo.status === "APPROVED";
@@ -201,8 +208,8 @@ export function PhotoPreviewModal({
           }
           break;
         case "i":
-          // AI Auto-tag (only if enabled for this photo)
-          if (!isAutoTagging && photo.aiTaggingEnabled !== false) {
+          // AI Auto-tag (only if enabled)
+          if (!isAutoTagging && !isAiTaggingDisabled) {
             e.preventDefault();
             handleAutoTag();
           }
@@ -219,7 +226,7 @@ export function PhotoPreviewModal({
           break;
       }
     },
-    [onClose, handlePrev, handleNext, canApprove, canReject, canRetry, isLoading, isDeleting, isAutoTagging]
+    [onClose, handlePrev, handleNext, canApprove, canReject, canRetry, isLoading, isDeleting, isAutoTagging, isAiTaggingDisabled]
   );
 
   // Global keyboard event listener
@@ -333,21 +340,31 @@ export function PhotoPreviewModal({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`h-6 px-2 text-xs ${photo.aiTaggingEnabled === false ? "opacity-50 cursor-not-allowed" : ""}`}
+                      className={`h-6 px-2 text-xs ${isAiTaggingDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
                       onClick={handleAutoTag}
-                      disabled={isAutoTagging || photo.aiTaggingEnabled === false}
+                      disabled={isAutoTagging || isAiTaggingDisabled}
                     >
                       {isAutoTagging ? (
                         <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                      ) : photo.aiTaggingEnabled === false ? (
+                      ) : isAiTaggingDisabledByAdmin ? (
+                        <ShieldAlert className="h-3 w-3 mr-1 text-muted-foreground" />
+                      ) : isAiTaggingDisabledByFormat ? (
                         <AlertCircle className="h-3 w-3 mr-1 text-muted-foreground" />
                       ) : (
                         <Sparkles className="h-3 w-3 mr-1" />
                       )}
                       Auto-tag
                     </Button>
-                    {/* Tooltip for disabled state */}
-                    {photo.aiTaggingEnabled === false && (
+                    {/* Tooltip for admin-disabled state */}
+                    {isAiTaggingDisabledByAdmin && (
+                      <div className="absolute right-0 bottom-full mb-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        <p className="text-muted-foreground">
+                          AI tagging has been disabled by an administrator
+                        </p>
+                      </div>
+                    )}
+                    {/* Tooltip for format-disabled state (only show if not admin-disabled) */}
+                    {!isAiTaggingDisabledByAdmin && isAiTaggingDisabledByFormat && (
                       <div className="absolute right-0 bottom-full mb-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                         <p className="text-muted-foreground">
                           Format not compatible with AI tagging
@@ -361,8 +378,15 @@ export function PhotoPreviewModal({
                     )}
                   </div>
                 </div>
-                {/* Show warning if AI tagging is disabled for this photo */}
-                {photo.aiTaggingEnabled === false && (
+                {/* Show warning if AI tagging is disabled by admin */}
+                {isAiTaggingDisabledByAdmin && (
+                  <div className="mb-2 p-2 bg-slate-500/10 border border-slate-500/20 rounded text-xs text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
+                    <ShieldAlert className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span>AI tagging has been disabled by an administrator.</span>
+                  </div>
+                )}
+                {/* Show warning if AI tagging is disabled for this photo's format */}
+                {!isAiTaggingDisabledByAdmin && isAiTaggingDisabledByFormat && (
                   <div className="mb-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
                     <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
                     <span>This photo's format ({photo.mimeType}) is not compatible with AI tagging. Re-upload with conversion enabled.</span>

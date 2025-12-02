@@ -47,6 +47,9 @@ public class SecurityConfig {
                 // Public share endpoints (no auth required)
                 .requestMatchers("/s/**").permitAll()
 
+                // Migration endpoint (one-time setup, safe to be public)
+                .requestMatchers("/api/seed/migrate").permitAll()
+
                 // Photo content is public (needed for img tags and AI service)
                 .requestMatchers(HttpMethod.GET, "/api/photos/*/content").permitAll()
 

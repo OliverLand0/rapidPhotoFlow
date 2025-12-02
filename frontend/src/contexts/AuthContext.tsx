@@ -29,6 +29,7 @@ import { syncUser, type UserRole } from "../lib/api/authApi";
 interface AuthState {
   user: CognitoUserInfo | null;
   userRole: UserRole | null;
+  aiTaggingEnabled: boolean;
   isAuthenticated: boolean;
   isLoading: boolean;
   isConfigured: boolean;
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [state, setState] = useState<AuthState>({
     user: null,
     userRole: null,
+    aiTaggingEnabled: true,
     isAuthenticated: false,
     isLoading: true,
     isConfigured: isCognitoConfigured(),
@@ -74,8 +76,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const userInfo = await getCurrentUserInfo();
       let userRole: UserRole | null = null;
+      let aiTaggingEnabled = true;
 
-      // Sync with backend to get user role
+      // Sync with backend to get user role and settings
       if (userInfo) {
         try {
           const token = await getAccessToken();
@@ -85,6 +88,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               token
             );
             userRole = syncedUser.role;
+            aiTaggingEnabled = syncedUser.aiTaggingEnabled !== false;
           }
         } catch (syncError) {
           console.warn("Failed to sync user with backend:", syncError);
@@ -94,6 +98,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setState({
         user: userInfo,
         userRole,
+        aiTaggingEnabled,
         isAuthenticated: !!userInfo,
         isLoading: false,
         isConfigured: true,
@@ -102,6 +107,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setState({
         user: null,
         userRole: null,
+        aiTaggingEnabled: true,
         isAuthenticated: false,
         isLoading: false,
         isConfigured: true,
@@ -119,6 +125,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await cognitoSignIn(params);
       const userInfo = await getCurrentUserInfo();
       let userRole: UserRole | null = null;
+      let aiTaggingEnabled = true;
 
       if (userInfo) {
         // Sync user with backend
@@ -133,6 +140,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               token
             );
             userRole = syncedUser.role;
+            aiTaggingEnabled = syncedUser.aiTaggingEnabled !== false;
           }
         } catch (syncError) {
           console.warn("Failed to sync user with backend:", syncError);
@@ -143,6 +151,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setState({
         user: userInfo,
         userRole,
+        aiTaggingEnabled,
         isAuthenticated: !!userInfo,
         isLoading: false,
         isConfigured: true,
@@ -158,6 +167,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setState({
       user: null,
       userRole: null,
+      aiTaggingEnabled: true,
       isAuthenticated: false,
       isLoading: false,
       isConfigured: true,

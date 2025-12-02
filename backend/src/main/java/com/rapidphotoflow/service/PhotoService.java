@@ -65,6 +65,7 @@ public class PhotoService {
                 boolean isChatGptCompatible = imageConversionService.isChatGptCompatible(originalMimeType);
 
                 // Attempt conversion if needed and requested
+                String finalFilename = file.getOriginalFilename();
                 if (!isChatGptCompatible && convertToCompatible && imageConversionService.isConvertible(originalMimeType)) {
                     ImageConversionService.ConversionResult result = imageConversionService.convert(content, originalMimeType);
                     if (result.isSuccess()) {
@@ -73,7 +74,16 @@ public class PhotoService {
                         finalSize = content.length;
                         wasConverted = true;
                         isChatGptCompatible = true;
-                        log.info("Converted {} from {} to {}", file.getOriginalFilename(), originalMimeType, finalMimeType);
+                        // Update filename extension to match converted format
+                        if (finalFilename != null && result.getNewExtension() != null) {
+                            int lastDot = finalFilename.lastIndexOf('.');
+                            if (lastDot > 0) {
+                                finalFilename = finalFilename.substring(0, lastDot + 1) + result.getNewExtension();
+                            } else {
+                                finalFilename = finalFilename + "." + result.getNewExtension();
+                            }
+                        }
+                        log.info("Converted {} from {} to {} (new filename: {})", file.getOriginalFilename(), originalMimeType, finalMimeType, finalFilename);
                     } else {
                         log.warn("Conversion failed for {}: {}", file.getOriginalFilename(), result.getErrorMessage());
                     }
@@ -92,7 +102,7 @@ public class PhotoService {
                 // Save metadata to database
                 PhotoEntity entity = PhotoEntity.builder()
                         .id(photoId)
-                        .filename(file.getOriginalFilename())
+                        .filename(finalFilename)
                         .mimeType(finalMimeType)
                         .originalMimeType(originalMimeType)
                         .sizeBytes(finalSize)
