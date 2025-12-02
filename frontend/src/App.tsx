@@ -6,7 +6,9 @@ import { FoldersProvider } from "./lib/FoldersContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./components/ui/toast";
 import { Layout } from "./components/Layout";
+import { AdminLayout } from "./components/AdminLayout";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { AdminRoute } from "./components/auth/AdminRoute";
 import { UploadPage } from "./pages/UploadPage";
 import { ReviewPage } from "./pages/ReviewPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -17,6 +19,10 @@ import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SharePage } from "./pages/SharePage";
 import { SharesPage } from "./pages/SharesPage";
+import { AdminDashboard } from "./pages/admin/AdminDashboard";
+import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
+import { AdminUserDetailPage } from "./pages/admin/AdminUserDetailPage";
+import { AdminAuditPage } from "./pages/admin/AdminAuditPage";
 
 // Error boundary to catch and display errors
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
@@ -79,6 +85,21 @@ function App() {
                   <Route path="review" element={<ReviewPage />} />
                   <Route path="shares" element={<SharesPage />} />
                   <Route path="profile" element={<ProfilePage />} />
+                </Route>
+
+                {/* Admin routes (require admin role) */}
+                <Route
+                  path="/admin"
+                  element={
+                    <AdminRoute>
+                      <AdminLayout />
+                    </AdminRoute>
+                  }
+                >
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="users" element={<AdminUsersPage />} />
+                  <Route path="users/:userId" element={<AdminUserDetailPage />} />
+                  <Route path="audit" element={<AdminAuditPage />} />
                 </Route>
               </Routes>
               </BrowserRouter>

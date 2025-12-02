@@ -30,8 +30,9 @@ RUN addgroup -g 1001 -S appgroup && \
 # Copy the built jar from build stage
 COPY --from=build /app/target/*.jar app.jar
 
-# Install curl for health checks
-RUN apk add --no-cache curl
+# Install curl for health checks and image processing libraries
+# fontconfig, freetype, and libjpeg-turbo improve ImageIO performance
+RUN apk add --no-cache curl fontconfig freetype libjpeg-turbo
 
 # Change ownership
 RUN chown -R appuser:appgroup /app

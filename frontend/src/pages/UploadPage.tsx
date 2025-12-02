@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload, Sparkles, AlertTriangle } from "lucide-react";
+import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload, Sparkles, AlertTriangle, RefreshCw, Info } from "lucide-react";
 import { UploadDropzone } from "../features/photos/components/UploadDropzone";
 import { StatusBadge } from "../components/shared/StatusBadge";
 import { Button } from "../components/ui/button";
@@ -32,6 +32,9 @@ export function UploadPage() {
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Image conversion toggle (for AI compatibility)
+  const [convertToCompatible, setConvertToCompatible] = useState(true);
 
   // Bulk upload warning state
   const [showBulkWarning, setShowBulkWarning] = useState(false);
@@ -84,7 +87,7 @@ export function UploadPage() {
 
   // Perform the actual upload (separated so it can be called after warning dialog)
   const performUpload = useCallback(
-    async (files: File[], onProgress: (progress: number, speed: number) => void, enableAutoTag: boolean) => {
+    async (files: File[], onProgress: (progress: number, speed: number) => void, enableAutoTag: boolean, enableConversion: boolean = true) => {
       // Create previews for the files being uploaded
       const uploading: UploadingFile[] = files.map((file) => ({
         name: file.name,
@@ -138,7 +141,7 @@ export function UploadPage() {
             currentSpeed = speed;
             // Also update speed immediately for responsiveness
             onProgress(visualProgress, speed);
-          });
+          }, { convertToCompatible: enableConversion });
 
           const response = await promise;
           // Track uploaded photo IDs for auto-tagging and linking
@@ -202,30 +205,30 @@ export function UploadPage() {
       }
 
       // No warning needed, proceed with upload
-      await performUpload(files, onProgress, autoTagOnUpload);
+      await performUpload(files, onProgress, autoTagOnUpload, convertToCompatible);
     },
-    [autoTagOnUpload, performUpload]
+    [autoTagOnUpload, convertToCompatible, performUpload]
   );
 
   // Handle bulk warning dialog actions
   const handleBulkWarningProceed = useCallback(async () => {
     setShowBulkWarning(false);
     if (pendingFiles.length > 0 && pendingProgressCallback.current) {
-      await performUpload(pendingFiles, pendingProgressCallback.current, true);
+      await performUpload(pendingFiles, pendingProgressCallback.current, true, convertToCompatible);
     }
     setPendingFiles([]);
     pendingProgressCallback.current = null;
-  }, [pendingFiles, performUpload]);
+  }, [pendingFiles, performUpload, convertToCompatible]);
 
   const handleBulkWarningDisableAI = useCallback(async () => {
     setShowBulkWarning(false);
     setAutoTagOnUpload(false);
     if (pendingFiles.length > 0 && pendingProgressCallback.current) {
-      await performUpload(pendingFiles, pendingProgressCallback.current, false);
+      await performUpload(pendingFiles, pendingProgressCallback.current, false, convertToCompatible);
     }
     setPendingFiles([]);
     pendingProgressCallback.current = null;
-  }, [pendingFiles, performUpload, setAutoTagOnUpload]);
+  }, [pendingFiles, performUpload, setAutoTagOnUpload, convertToCompatible]);
 
   const handleBulkWarningCancel = useCallback(() => {
     setShowBulkWarning(false);
@@ -404,6 +407,33 @@ export function UploadPage() {
                 across {photos.length} {photos.length === 1 ? "photo" : "photos"}
               </p>
             </div>
+          </Card>
+
+          {/* Image Conversion Toggle */}
+          <Card className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 text-blue-500" />
+                  Convert for AI Compatibility
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Convert TIFF, BMP to JPEG/PNG for AI tagging
+                </p>
+              </div>
+              <Switch
+                checked={convertToCompatible}
+                onCheckedChange={setConvertToCompatible}
+              />
+            </div>
+            {!convertToCompatible && (
+              <div className="mt-3 p-2 bg-blue-500/10 border border-blue-500/20 rounded-md">
+                <p className="text-xs text-blue-600 dark:text-blue-400 flex items-start gap-1.5">
+                  <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                  <span>Incompatible formats (TIFF, BMP, HEIC) will not be converted. AI tagging will be disabled for these photos.</span>
+                </p>
+              </div>
+            )}
           </Card>
 
           {/* AI Auto-Tagging Toggle */}

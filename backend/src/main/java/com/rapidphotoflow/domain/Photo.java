@@ -26,6 +26,10 @@ public class Photo {
     private UUID uploadedByUserId;
     private String uploadedByUsername;
     private UUID folderId;
+    private String originalMimeType;
+    private Boolean isChatGptCompatible;
+    private Boolean wasConverted;
+    private Boolean aiTaggingEnabled;
     @Builder.Default
     private Set<String> tags = new HashSet<>();
 

@@ -47,6 +47,10 @@ export interface Photo {
   tags: string[];
   uploadedByUsername?: string | null;
   folderId?: string | null;
+  originalMimeType?: string | null;
+  isChatGptCompatible?: boolean;
+  wasConverted?: boolean;
+  aiTaggingEnabled?: boolean;
 }
 
 export interface EventLog {
@@ -240,4 +244,83 @@ export interface PublicPhoto {
   mimeType: string;
   photoUrl: string;
   thumbnailUrl: string;
+}
+
+// Admin types
+export type UserRole = "USER" | "ADMIN";
+export type UserStatus = "ACTIVE" | "SUSPENDED" | "PENDING" | "DELETED";
+
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  role: UserRole;
+  status: UserStatus;
+  lastLoginAt: string | null;
+  createdAt: string;
+}
+
+export interface UserUsageStats {
+  totalPhotosUploaded: number;
+  totalStorageBytes: number;
+  aiTaggingUsageCount: number;
+  lastUploadAt: string | null;
+}
+
+export interface AdminUserDetail {
+  id: string;
+  email: string;
+  username: string;
+  role: UserRole;
+  status: UserStatus;
+  lastLoginAt: string | null;
+  createdAt: string;
+  maxStorageBytes: number | null;
+  maxPhotos: number | null;
+  aiTaggingEnabled: boolean | null;
+  accountNotes: string | null;
+  usageStats: UserUsageStats;
+}
+
+export interface AdminUserListResponse {
+  users: User[];
+  totalCount: number;
+}
+
+export interface AdminDashboardStats {
+  totalUsers: number;
+  activeUsers: number;
+  suspendedUsers: number;
+  totalPhotos: number;
+  totalStorageBytes: number;
+  photosUploadedToday: number;
+  photosUploadedThisWeek: number;
+  photosUploadedThisMonth: number;
+}
+
+export interface UpdateUserSettingsRequest {
+  role?: UserRole;
+  status?: UserStatus;
+  maxStorageBytes?: number;
+  maxPhotos?: number;
+  aiTaggingEnabled?: boolean;
+  accountNotes?: string;
+}
+
+export interface AdminAuditLog {
+  id: string;
+  adminUserId: string;
+  adminEmail: string;
+  targetUserId: string | null;
+  targetUserEmail: string | null;
+  actionType: string;
+  description: string | null;
+  previousValue: string | null;
+  newValue: string | null;
+  timestamp: string;
+}
+
+export interface AdminAuditLogListResponse {
+  logs: AdminAuditLog[];
+  totalCount: number;
 }
