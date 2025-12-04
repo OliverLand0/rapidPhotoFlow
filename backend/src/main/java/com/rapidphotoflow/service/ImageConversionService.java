@@ -1,7 +1,9 @@
 package com.rapidphotoflow.service;
 
+import com.rapidphotoflow.service.conversion.*;
 import lombok.Builder;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -15,10 +17,23 @@ import java.util.Set;
 /**
  * Service for converting image formats to ensure ChatGPT API compatibility for AI tagging.
  * ChatGPT Vision API supports: JPEG, PNG, WebP, GIF
+ *
+ * Supports conversion from:
+ * - TIFF, BMP (via TwelveMonkeys ImageIO)
+ * - ICO, PSD (via TwelveMonkeys ImageIO)
+ * - SVG (via Apache Batik)
+ * - HEIC/HEIF (via native libheif)
+ * - RAW formats: CR2, CR3, NEF, ARW, DNG, ORF, RAF, RW2 (via native dcraw/LibRaw)
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class ImageConversionService {
+
+    private final HeicConverter heicConverter;
+    private final RawConverter rawConverter;
+    private final SvgConverter svgConverter;
+    private final NativeLibraryDetector nativeLibraryDetector;
 
     // Formats that ChatGPT Vision API supports
     private static final Set<String> CHATGPT_COMPATIBLE_TYPES = Set.of(
@@ -29,17 +44,20 @@ public class ImageConversionService {
             "image/gif"
     );
 
-    // Formats we can convert from (using TwelveMonkeys ImageIO)
-    private static final Set<String> CONVERTIBLE_TYPES = Set.of(
+    // Formats we can convert using pure Java (TwelveMonkeys ImageIO)
+    private static final Set<String> IMAGEIO_CONVERTIBLE_TYPES = Set.of(
             "image/tiff",
             "image/x-tiff",
             "image/bmp",
             "image/x-bmp",
-            "image/x-ms-bmp"
+            "image/x-ms-bmp",
+            "image/x-icon",
+            "image/vnd.microsoft.icon",
+            "image/vnd.adobe.photoshop",
+            "application/x-photoshop"
     );
 
-    // Note: HEIC/HEIF support requires native libheif library
-    // These are detected but conversion will fail without native support
+    // HEIC/HEIF formats (require native libheif)
     private static final Set<String> HEIC_TYPES = Set.of(
             "image/heic",
             "image/heif",
@@ -47,7 +65,25 @@ public class ImageConversionService {
             "image/heif-sequence"
     );
 
-    private static final long MAX_INPUT_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
+    // RAW camera formats (require native dcraw/LibRaw)
+    private static final Set<String> RAW_TYPES = Set.of(
+            "image/x-canon-cr2",
+            "image/x-canon-cr3",
+            "image/x-nikon-nef",
+            "image/x-sony-arw",
+            "image/x-adobe-dng",
+            "image/x-olympus-orf",
+            "image/x-fuji-raf",
+            "image/x-panasonic-rw2",
+            "image/x-dcraw"
+    );
+
+    // SVG format (converted via Batik)
+    private static final Set<String> SVG_TYPES = Set.of(
+            "image/svg+xml"
+    );
+
+    private static final long MAX_INPUT_SIZE_BYTES = 150 * 1024 * 1024; // 150MB
 
     /**
      * Check if a MIME type is compatible with ChatGPT Vision API
@@ -67,7 +103,10 @@ public class ImageConversionService {
             return false;
         }
         String lowerMime = mimeType.toLowerCase();
-        return CONVERTIBLE_TYPES.contains(lowerMime) || HEIC_TYPES.contains(lowerMime);
+        return IMAGEIO_CONVERTIBLE_TYPES.contains(lowerMime)
+                || HEIC_TYPES.contains(lowerMime)
+                || RAW_TYPES.contains(lowerMime)
+                || SVG_TYPES.contains(lowerMime);
     }
 
     /**
@@ -81,7 +120,27 @@ public class ImageConversionService {
     }
 
     /**
-     * Convert an image to JPEG format for ChatGPT compatibility
+     * Check if this is a RAW camera format
+     */
+    public boolean isRawFormat(String mimeType) {
+        if (mimeType == null) {
+            return false;
+        }
+        return RAW_TYPES.contains(mimeType.toLowerCase());
+    }
+
+    /**
+     * Check if this is an SVG format
+     */
+    public boolean isSvgFormat(String mimeType) {
+        if (mimeType == null) {
+            return false;
+        }
+        return SVG_TYPES.contains(mimeType.toLowerCase());
+    }
+
+    /**
+     * Convert an image to JPEG/PNG format for ChatGPT compatibility
      *
      * @param imageData       Original image bytes
      * @param originalMimeType Original MIME type
@@ -98,9 +157,11 @@ public class ImageConversionService {
         if (imageData.length > MAX_INPUT_SIZE_BYTES) {
             return ConversionResult.builder()
                     .success(false)
-                    .errorMessage("Image exceeds maximum size of 50MB")
+                    .errorMessage("Image exceeds maximum size of 150MB")
                     .build();
         }
+
+        String lowerMime = originalMimeType != null ? originalMimeType.toLowerCase() : "";
 
         // Check if already compatible
         if (isChatGptCompatible(originalMimeType)) {
@@ -112,16 +173,112 @@ public class ImageConversionService {
                     .build();
         }
 
-        // HEIC requires native library - check if we can read it
+        // Route to appropriate converter based on format
+
+        // HEIC/HEIF - use native heif-convert
         if (isHeicFormat(originalMimeType)) {
-            log.warn("HEIC/HEIF format detected. Native libheif library required for conversion.");
+            return convertHeic(imageData);
+        }
+
+        // RAW formats - use native dcraw/LibRaw
+        if (isRawFormat(originalMimeType)) {
+            return convertRaw(imageData, originalMimeType);
+        }
+
+        // SVG - use Batik
+        if (isSvgFormat(originalMimeType)) {
+            return convertSvg(imageData);
+        }
+
+        // All other formats - use ImageIO (TIFF, BMP, ICO, PSD)
+        return convertViaImageIO(imageData, originalMimeType);
+    }
+
+    /**
+     * Convert HEIC/HEIF using native heif-convert
+     */
+    private ConversionResult convertHeic(byte[] imageData) {
+        if (!heicConverter.isAvailable()) {
+            log.warn("HEIC/HEIF format detected. Native libheif library not available.");
             return ConversionResult.builder()
                     .success(false)
-                    .errorMessage("HEIC/HEIF conversion requires native library support (libheif)")
+                    .errorMessage("HEIC/HEIF conversion requires native library support (libheif). " +
+                            "Install libheif-tools for iPhone photo support.")
                     .build();
         }
 
-        // Try to convert using ImageIO
+        try {
+            byte[] jpegData = heicConverter.convertToJpeg(imageData);
+            return ConversionResult.builder()
+                    .success(true)
+                    .data(jpegData)
+                    .newMimeType(heicConverter.getOutputMimeType())
+                    .newExtension(heicConverter.getOutputExtension())
+                    .build();
+        } catch (ConversionException e) {
+            log.error("HEIC conversion failed: {}", e.getMessage());
+            return ConversionResult.builder()
+                    .success(false)
+                    .errorMessage("HEIC conversion failed: " + e.getMessage())
+                    .build();
+        }
+    }
+
+    /**
+     * Convert RAW camera formats using native dcraw/LibRaw
+     */
+    private ConversionResult convertRaw(byte[] imageData, String mimeType) {
+        if (!rawConverter.isAvailable()) {
+            log.warn("RAW format detected. Native dcraw/LibRaw not available.");
+            return ConversionResult.builder()
+                    .success(false)
+                    .errorMessage("RAW format conversion requires native library support (dcraw/LibRaw). " +
+                            "Install libraw for camera RAW support.")
+                    .build();
+        }
+
+        try {
+            byte[] jpegData = rawConverter.convertToJpeg(imageData, mimeType);
+            return ConversionResult.builder()
+                    .success(true)
+                    .data(jpegData)
+                    .newMimeType(rawConverter.getOutputMimeType())
+                    .newExtension(rawConverter.getOutputExtension())
+                    .build();
+        } catch (ConversionException e) {
+            log.error("RAW conversion failed: {}", e.getMessage());
+            return ConversionResult.builder()
+                    .success(false)
+                    .errorMessage("RAW conversion failed: " + e.getMessage())
+                    .build();
+        }
+    }
+
+    /**
+     * Convert SVG using Batik
+     */
+    private ConversionResult convertSvg(byte[] imageData) {
+        try {
+            byte[] pngData = svgConverter.convertToPng(imageData);
+            return ConversionResult.builder()
+                    .success(true)
+                    .data(pngData)
+                    .newMimeType(svgConverter.getOutputMimeType())
+                    .newExtension(svgConverter.getOutputExtension())
+                    .build();
+        } catch (ConversionException e) {
+            log.error("SVG conversion failed: {}", e.getMessage());
+            return ConversionResult.builder()
+                    .success(false)
+                    .errorMessage("SVG conversion failed: " + e.getMessage())
+                    .build();
+        }
+    }
+
+    /**
+     * Convert using ImageIO (TIFF, BMP, ICO, PSD)
+     */
+    private ConversionResult convertViaImageIO(byte[] imageData, String originalMimeType) {
         try {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageData));
 
@@ -181,7 +338,10 @@ public class ImageConversionService {
         }
     }
 
-    private String getExtensionForMimeType(String mimeType) {
+    /**
+     * Get the file extension for a MIME type
+     */
+    public String getExtensionForMimeType(String mimeType) {
         if (mimeType == null) return "bin";
         return switch (mimeType.toLowerCase()) {
             case "image/jpeg", "image/jpg" -> "jpg";
@@ -190,9 +350,27 @@ public class ImageConversionService {
             case "image/gif" -> "gif";
             case "image/tiff", "image/x-tiff" -> "tiff";
             case "image/bmp", "image/x-bmp", "image/x-ms-bmp" -> "bmp";
-            case "image/heic", "image/heif" -> "heic";
+            case "image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence" -> "heic";
+            case "image/x-icon", "image/vnd.microsoft.icon" -> "ico";
+            case "image/vnd.adobe.photoshop", "application/x-photoshop" -> "psd";
+            case "image/svg+xml" -> "svg";
+            case "image/x-canon-cr2" -> "cr2";
+            case "image/x-canon-cr3" -> "cr3";
+            case "image/x-nikon-nef" -> "nef";
+            case "image/x-sony-arw" -> "arw";
+            case "image/x-adobe-dng" -> "dng";
+            case "image/x-olympus-orf" -> "orf";
+            case "image/x-fuji-raf" -> "raf";
+            case "image/x-panasonic-rw2" -> "rw2";
             default -> "bin";
         };
+    }
+
+    /**
+     * Get conversion capabilities for health/info endpoint
+     */
+    public java.util.Map<String, Object> getCapabilities() {
+        return nativeLibraryDetector.getCapabilities();
     }
 
     /**

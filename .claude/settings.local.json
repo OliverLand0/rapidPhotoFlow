@@ -92,7 +92,15 @@
       "Bash(AWS_ACCESS_KEY_ID=\"\" AWS_SECRET_ACCESS_KEY=\"\" AWS_SESSION_TOKEN=\"\" aws ecs list-services:*)",
       "Bash(AWS_ACCESS_KEY_ID=\"\" AWS_SECRET_ACCESS_KEY=\"\" AWS_SESSION_TOKEN=\"\" aws logs:*)",
       "Bash(AWS_ACCESS_KEY_ID=\"\" AWS_SECRET_ACCESS_KEY=\"\" AWS_SESSION_TOKEN=\"\" aws ecs describe-services:*)",
-      "Bash(AWS_ACCESS_KEY_ID=\"\" AWS_SECRET_ACCESS_KEY=\"\" AWS_SESSION_TOKEN=\"\" aws ecs list-tasks:*)"
+      "Bash(AWS_ACCESS_KEY_ID=\"\" AWS_SECRET_ACCESS_KEY=\"\" AWS_SESSION_TOKEN=\"\" aws ecs list-tasks:*)",
+      "WebSearch",
+      "Bash(brew list:*)",
+      "Bash(heif-convert:*)",
+      "Bash(dcraw_emu:*)",
+      "Bash(timeout 2 sh:*)",
+      "Bash(timeout 10 dcraw_emu:*)",
+      "Bash(python3:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

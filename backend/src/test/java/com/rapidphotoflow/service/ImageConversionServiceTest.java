@@ -1,5 +1,9 @@
 package com.rapidphotoflow.service;
 
+import com.rapidphotoflow.service.conversion.HeicConverter;
+import com.rapidphotoflow.service.conversion.NativeLibraryDetector;
+import com.rapidphotoflow.service.conversion.RawConverter;
+import com.rapidphotoflow.service.conversion.SvgConverter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -20,7 +24,15 @@ class ImageConversionServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ImageConversionService();
+        // Create a NativeLibraryDetector that reports no native support (test environment)
+        NativeLibraryDetector nativeLibraryDetector = new NativeLibraryDetector();
+
+        // Create real converter instances
+        HeicConverter heicConverter = new HeicConverter(nativeLibraryDetector);
+        RawConverter rawConverter = new RawConverter(nativeLibraryDetector);
+        SvgConverter svgConverter = new SvgConverter();
+
+        service = new ImageConversionService(heicConverter, rawConverter, svgConverter, nativeLibraryDetector);
     }
 
     // ===== isChatGptCompatible tests =====
@@ -147,6 +159,7 @@ class ImageConversionServiceTest {
 
     @Test
     void convert_shouldFailForHeicWithoutNativeSupport() {
+        // NativeLibraryDetector will report no native support in test environment (no heif-convert installed)
         // HEIC data would be invalid here but we're testing the error message
         byte[] fakeHeicData = new byte[100];
 
@@ -154,7 +167,7 @@ class ImageConversionServiceTest {
 
         assertFalse(result.isSuccess());
         assertNotNull(result.getErrorMessage());
-        assertTrue(result.getErrorMessage().contains("HEIC") || result.getErrorMessage().contains("native"));
+        assertTrue(result.getErrorMessage().contains("HEIC") || result.getErrorMessage().contains("native") || result.getErrorMessage().contains("libheif"));
     }
 
     @Test
@@ -175,7 +188,7 @@ class ImageConversionServiceTest {
 
     @Test
     void convert_shouldFailForTooLargeImages() {
-        byte[] hugeData = new byte[51 * 1024 * 1024]; // 51MB
+        byte[] hugeData = new byte[151 * 1024 * 1024]; // 151MB (exceeds 150MB limit)
 
         ImageConversionService.ConversionResult result = service.convert(hugeData, "image/bmp");
 

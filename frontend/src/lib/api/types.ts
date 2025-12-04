@@ -51,6 +51,7 @@ export interface Photo {
   isChatGptCompatible?: boolean;
   wasConverted?: boolean;
   aiTaggingEnabled?: boolean;
+  hasPreview?: boolean;
 }
 
 export interface EventLog {

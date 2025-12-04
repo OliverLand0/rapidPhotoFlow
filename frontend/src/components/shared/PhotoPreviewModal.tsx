@@ -290,7 +290,7 @@ export function PhotoPreviewModal({
             )}
 
             <img
-              src={photoClient.getPhotoContentUrl(photo.id)}
+              src={photoClient.getPhotoDisplayUrl(photo)}
               alt={photo.filename}
               className="max-h-[40vh] md:max-h-[70vh] max-w-full object-contain"
               onError={(e) => {

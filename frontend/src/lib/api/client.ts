@@ -32,7 +32,7 @@ import { getAccessToken } from "../auth/cognitoConfig";
 // Use relative URLs in production (CloudFront routes /api/* and /ai/* to backend services)
 // Use localhost in development
 const isDev = import.meta.env.DEV;
-const API_BASE = isDev ? "http://localhost:8080/api" : "/api";
+export const API_BASE = isDev ? "http://localhost:8080/api" : "/api";
 const AI_SERVICE_BASE = isDev ? "http://localhost:3001/ai" : "/ai";
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
@@ -219,6 +219,17 @@ export const photoClient = {
 
   getPhotoContentUrl(id: string): string {
     return `${API_BASE}/photos/${id}/content`;
+  },
+
+  getPhotoPreviewUrl(id: string): string {
+    return `${API_BASE}/photos/${id}/preview`;
+  },
+
+  getPhotoDisplayUrl(photo: { id: string; hasPreview?: boolean }): string {
+    // Use preview URL if available (for non-browser-displayable formats like RAW)
+    return photo.hasPreview
+      ? `${API_BASE}/photos/${photo.id}/preview`
+      : `${API_BASE}/photos/${photo.id}/content`;
   },
 
   async addTag(photoId: string, tag: string): Promise<Photo> {

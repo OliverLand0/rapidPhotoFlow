@@ -10,7 +10,7 @@ import { Switch } from "../components/ui/switch";
 import { Dialog, DialogHeader, DialogContent } from "../components/ui/dialog";
 import { EmptyState } from "../components/shared/EmptyState";
 import { Tooltip } from "../components/ui/tooltip";
-import { photoClient, aiClient } from "../lib/api/client";
+import { photoClient, aiClient, API_BASE } from "../lib/api/client";
 import { usePhotos } from "../lib/PhotosContext";
 import { useAISettings } from "../hooks/useAISettings";
 import { useAuth } from "../contexts/AuthContext";
@@ -27,7 +27,7 @@ interface UploadingFile {
 
 export function UploadPage() {
   const navigate = useNavigate();
-  const { photos, refresh, setUploadingCount } = usePhotos();
+  const { photos, refresh, setPhotos, setUploadingCount } = usePhotos();
   const { autoTagOnUpload, setAutoTagOnUpload } = useAISettings();
   const { aiTaggingEnabled: userAiTaggingEnabled } = useAuth();
 
@@ -151,9 +151,22 @@ export function UploadPage() {
 
           const response = await promise;
           // Track uploaded photo IDs for auto-tagging and linking
-          response.items.forEach((photo) => {
+          // Map both the final filename AND original filename to the photo ID
+          // (conversion may change the filename extension, e.g., photo.cr2 -> photo.jpg)
+          response.items.forEach((photo, idx) => {
             uploadedPhotoIds.push(photo.id);
             filenameToPhotoId[photo.filename] = photo.id;
+            // Also map the original filename from the batch
+            const originalFile = batch[idx];
+            if (originalFile && originalFile.name !== photo.filename) {
+              filenameToPhotoId[originalFile.name] = photo.id;
+            }
+          });
+          // Immediately merge uploaded photos into state so thumbnails can display
+          setPhotos((prev) => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const newPhotos = response.items.filter(p => !existingIds.has(p.id));
+            return [...newPhotos, ...prev];
           });
         }
 
@@ -300,45 +313,73 @@ export function UploadPage() {
 
               {/* Photo Grid Preview */}
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[200px] overflow-y-auto">
-                {uploadingFiles.map((file, index) => (
-                  <div
-                    key={index}
-                    className={`w-full pb-[100%] relative rounded-lg overflow-hidden bg-muted group ${
-                      file.photoId && !isUploading ? "cursor-pointer" : ""
-                    }`}
-                    onClick={() => {
-                      if (file.photoId && !isUploading) {
-                        navigate(`/review?photoId=${file.photoId}`);
-                      }
-                    }}
-                  >
-                    <div className="absolute inset-0">
-                      {file.preview ? (
-                        <img
-                          src={file.preview}
-                          alt={file.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Image className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                      )}
-                      {/* Overlay with file info on hover */}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2">
-                        <p className="text-white text-xs text-center truncate w-full">
-                          {file.name}
-                        </p>
-                        <p className="text-white/70 text-xs">
-                          {formatFileSize(file.size)}
-                        </p>
-                        {file.photoId && !isUploading && (
-                          <p className="text-white/90 text-xs mt-1">Click to view</p>
+                {uploadingFiles.map((file, index) => {
+                  // Check if server has a preview available for this photo
+                  const serverPhoto = file.photoId ? photos.find(p => p.id === file.photoId) : null;
+
+                  // Determine the best URL to display
+                  // Check both local file extension AND server mimeType (for converted files)
+                  const browserDisplayableMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp'];
+                  const localIsBrowserDisplayable = /\.(jpe?g|png|gif|webp|svg|bmp|ico)$/i.test(file.name);
+                  const serverIsBrowserDisplayable = serverPhoto?.mimeType && browserDisplayableMimeTypes.includes(serverPhoto.mimeType);
+
+                  let displayUrl: string | undefined;
+                  if (serverPhoto?.hasPreview) {
+                    // Server has a generated preview (for RAW files uploaded without conversion)
+                    displayUrl = `${API_BASE}/photos/${serverPhoto.id}/preview`;
+                  } else if (serverPhoto?.id && serverIsBrowserDisplayable) {
+                    // Server file is browser-displayable (either originally or after conversion)
+                    displayUrl = `${API_BASE}/photos/${serverPhoto.id}/content`;
+                  } else if (localIsBrowserDisplayable && file.preview) {
+                    // Fall back to local blob only for browser-displayable files
+                    displayUrl = file.preview;
+                  }
+                  // For RAW files without server preview yet, displayUrl stays undefined -> shows placeholder
+
+                  return (
+                    <div
+                      key={`${index}-${serverPhoto?.hasPreview || false}`}
+                      className={`w-full pb-[100%] relative rounded-lg overflow-hidden bg-muted group ${
+                        file.photoId && !isUploading ? "cursor-pointer" : ""
+                      }`}
+                      onClick={() => {
+                        if (file.photoId && !isUploading) {
+                          navigate(`/review?photoId=${file.photoId}`);
+                        }
+                      }}
+                    >
+                      <div className="absolute inset-0">
+                        {displayUrl ? (
+                          <img
+                            src={displayUrl}
+                            alt={file.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // If image fails to load, hide it and show fallback
+                              (e.target as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Image className="h-8 w-8 text-muted-foreground animate-pulse" />
+                          </div>
                         )}
+                        {/* Overlay with file info on hover */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2">
+                          <p className="text-white text-xs text-center truncate w-full">
+                            {file.name}
+                          </p>
+                          <p className="text-white/70 text-xs">
+                            {formatFileSize(file.size)}
+                          </p>
+                          {file.photoId && !isUploading && (
+                            <p className="text-white/90 text-xs mt-1">Click to view</p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Upload More Button */}

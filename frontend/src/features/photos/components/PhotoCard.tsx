@@ -84,7 +84,7 @@ export function PhotoCard({
     >
       <div className="aspect-square bg-muted relative">
         <img
-          src={photoClient.getPhotoContentUrl(photo.id)}
+          src={photoClient.getPhotoDisplayUrl(photo)}
           alt={photo.filename}
           className="w-full h-full object-cover"
           onError={(e) => {

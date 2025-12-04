@@ -32,7 +32,18 @@ COPY --from=build /app/target/*.jar app.jar
 
 # Install curl for health checks and image processing libraries
 # fontconfig, freetype, and libjpeg-turbo improve ImageIO performance
-RUN apk add --no-cache curl fontconfig freetype libjpeg-turbo
+# libheif-tools for HEIC/HEIF conversion (iPhone photos)
+# libraw for RAW camera format conversion
+RUN apk add --no-cache \
+    curl \
+    fontconfig \
+    freetype \
+    libjpeg-turbo \
+    libheif-tools \
+    libraw
+
+# Create temp directory for image processing
+RUN mkdir -p /tmp/imageconv && chown -R appuser:appgroup /tmp/imageconv
 
 # Change ownership
 RUN chown -R appuser:appgroup /app

@@ -42,6 +42,7 @@ public class LocalSecurityConfig {
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/s/**").permitAll()  // Public share endpoints
                 .requestMatchers("/api/photos/*/content").permitAll()
+                .requestMatchers("/api/photos/*/preview").permitAll()
                 .requestMatchers("/api/photos/*/thumbnail").permitAll()
                 .requestMatchers("/api/internal/**").permitAll()  // Internal service-to-service APIs
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()

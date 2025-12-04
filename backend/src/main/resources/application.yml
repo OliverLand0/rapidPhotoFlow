@@ -6,7 +6,7 @@ spring:
     name: rapidphotoflow
   servlet:
     multipart:
-      max-file-size: 50MB
+      max-file-size: 150MB
       max-request-size: 500MB
 
   # Database configuration - uses environment variables from ECS
@@ -68,6 +68,14 @@ ai:
   service:
     url: ${AI_SERVICE_URL:http://localhost:3001}
     auto-tag-on-upload: false  # Disabled by default - controlled via frontend toggle
+
+# Image conversion configuration
+image:
+  conversion:
+    temp-dir: ${IMAGE_TEMP_DIR:/tmp/imageconv}
+    timeout-seconds: ${IMAGE_CONVERSION_TIMEOUT:120}
+    jpeg-quality: ${IMAGE_JPEG_QUALITY:0.9}
+    svg-max-dimension: ${SVG_MAX_DIMENSION:1920}
 
 # Logging
 logging:

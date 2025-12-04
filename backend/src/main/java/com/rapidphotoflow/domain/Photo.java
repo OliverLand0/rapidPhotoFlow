@@ -30,6 +30,7 @@ public class Photo {
     private Boolean isChatGptCompatible;
     private Boolean wasConverted;
     private Boolean aiTaggingEnabled;
+    private Boolean hasPreview;
     @Builder.Default
     private Set<String> tags = new HashSet<>();
 

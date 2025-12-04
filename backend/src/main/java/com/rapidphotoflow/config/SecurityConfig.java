@@ -50,8 +50,9 @@ public class SecurityConfig {
                 // Migration endpoint (one-time setup, safe to be public)
                 .requestMatchers("/api/seed/migrate").permitAll()
 
-                // Photo content is public (needed for img tags and AI service)
+                // Photo content and preview are public (needed for img tags and AI service)
                 .requestMatchers(HttpMethod.GET, "/api/photos/*/content").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/photos/*/preview").permitAll()
 
                 // Tag endpoints are public (needed for AI service to apply auto-tags)
                 .requestMatchers(HttpMethod.POST, "/api/photos/*/tags").permitAll()

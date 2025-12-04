@@ -135,6 +135,22 @@ public class PhotoController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/{id}/preview")
+    @Operation(summary = "Get photo preview", description = "Retrieve a JPEG preview for non-browser-displayable formats")
+    public ResponseEntity<byte[]> getPhotoPreview(@PathVariable UUID id) {
+        return photoService.getPhotoById(id)
+                .map(photo -> {
+                    byte[] preview = photoService.getPreviewContent(id);
+                    if (preview == null) {
+                        return ResponseEntity.notFound().<byte[]>build();
+                    }
+                    return ResponseEntity.ok()
+                            .contentType(MediaType.IMAGE_JPEG)
+                            .body(preview);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PostMapping("/{id}/action")
     @Operation(summary = "Perform action on photo", description = "Approve, reject, or retry a photo")
     public ResponseEntity<PhotoDTO> performAction(

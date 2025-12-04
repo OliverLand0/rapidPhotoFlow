@@ -69,6 +69,9 @@ public class PhotoEntity {
     @Column(name = "ai_tagging_enabled")
     private Boolean aiTaggingEnabled;
 
+    @Column(name = "preview_s3_key")
+    private String previewS3Key;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "photo_tags", joinColumns = @JoinColumn(name = "photo_id"))
     @Column(name = "tag")

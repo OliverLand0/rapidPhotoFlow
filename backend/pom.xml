@@ -126,6 +126,24 @@
             <artifactId>imageio-webp</artifactId>
             <version>3.10.1</version>
         </dependency>
+        <!-- ICO support is included in imageio-bmp -->
+        <dependency>
+            <groupId>com.twelvemonkeys.imageio</groupId>
+            <artifactId>imageio-psd</artifactId>
+            <version>3.10.1</version>
+        </dependency>
+
+        <!-- SVG rendering via Apache Batik -->
+        <dependency>
+            <groupId>org.apache.xmlgraphics</groupId>
+            <artifactId>batik-transcoder</artifactId>
+            <version>1.17</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.xmlgraphics</groupId>
+            <artifactId>batik-codec</artifactId>
+            <version>1.17</version>
+        </dependency>
 
         <!-- Testing -->
         <dependency>
