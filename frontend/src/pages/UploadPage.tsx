@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload, Sparkles, AlertTriangle, RefreshCw, Info, HelpCircle, ShieldAlert } from "lucide-react";
+import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload, Sparkles, AlertTriangle, RefreshCw, Info, HelpCircle, ShieldAlert, WifiOff } from "lucide-react";
 import { UploadDropzone } from "../features/photos/components/UploadDropzone";
 import { StatusBadge } from "../components/shared/StatusBadge";
 import { Button } from "../components/ui/button";
@@ -10,10 +10,11 @@ import { Switch } from "../components/ui/switch";
 import { Dialog, DialogHeader, DialogContent } from "../components/ui/dialog";
 import { EmptyState } from "../components/shared/EmptyState";
 import { Tooltip } from "../components/ui/tooltip";
-import { photoClient, aiClient, API_BASE } from "../lib/api/client";
+import { photoClient, API_BASE } from "../lib/api/client";
 import { usePhotos } from "../lib/PhotosContext";
 import { useAISettings } from "../hooks/useAISettings";
 import { useAuth } from "../contexts/AuthContext";
+import { useAIService } from "../contexts/AIServiceContext";
 import { formatRelativeTime, formatFileSize } from "../lib/utils";
 
 const BULK_UPLOAD_WARNING_THRESHOLD = 100;
@@ -30,9 +31,13 @@ export function UploadPage() {
   const { photos, refresh, setPhotos, setUploadingCount } = usePhotos();
   const { autoTagOnUpload, setAutoTagOnUpload } = useAISettings();
   const { aiTaggingEnabled: userAiTaggingEnabled } = useAuth();
+  const { isAvailable: isAiServiceAvailable, isChecking: isAiServiceChecking, queuePhotosForTagging, hasBeenTagged } = useAIService();
 
   // Check if AI tagging is disabled by admin
   const isAiTaggingDisabledByAdmin = !userAiTaggingEnabled;
+
+  // Check if AI service is unavailable
+  const isAiServiceUnavailable = !isAiServiceAvailable && !isAiServiceChecking;
 
   // Upload state for preview
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
@@ -47,9 +52,8 @@ export function UploadPage() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const pendingProgressCallback = useRef<((progress: number, speed: number) => void) | null>(null);
 
-  // Track photos pending AI tagging
+  // Track photos pending AI tagging (for this upload session)
   const pendingAutoTagRef = useRef<Set<string>>(new Set());
-  const taggedPhotosRef = useRef<Set<string>>(new Set());
 
   // Show recently completed photos (processed or failed)
   const completedPhotos = photos.filter((p) =>
@@ -65,31 +69,63 @@ export function UploadPage() {
   const totalStorageBytes = photos.reduce((acc, p) => acc + p.sizeBytes, 0);
 
   // Auto-tag photos when they finish processing (if enabled and not admin-disabled)
+  // Uses the global AIServiceContext for tagging which persists across navigation
   useEffect(() => {
-    if (!autoTagOnUpload || isAiTaggingDisabledByAdmin) return;
+    if (!autoTagOnUpload || isAiTaggingDisabledByAdmin || isAiServiceUnavailable) return;
 
-    // Find photos that are pending auto-tag and have finished processing
+    // Find photos that need tagging:
+    // - PROCESSED status with no tags
+    // - Not already tagged this session (tracked by context)
+    // - In pendingAutoTagRef (uploaded this session with auto-tag enabled)
     const photosToTag = photos.filter(
       (p) =>
-        pendingAutoTagRef.current.has(p.id) &&
         p.status === "PROCESSED" &&
-        !taggedPhotosRef.current.has(p.id) &&
-        p.tags.length === 0 // Only tag if no tags yet
+        p.tags.length === 0 &&
+        !hasBeenTagged(p.id) &&
+        pendingAutoTagRef.current.has(p.id)
     );
 
-    // Trigger AI tagging for each
-    photosToTag.forEach(async (photo) => {
-      taggedPhotosRef.current.add(photo.id);
-      pendingAutoTagRef.current.delete(photo.id);
-      try {
-        console.log(`Auto-tagging photo: ${photo.filename}`);
-        await aiClient.autoTag(photo.id);
-        refresh(); // Refresh to get updated tags
-      } catch (error) {
-        console.error(`Failed to auto-tag ${photo.filename}:`, error);
+    if (photosToTag.length === 0) return;
+
+    // Queue for tagging via context (handles debouncing, batching, progress UI)
+    const photoIds = photosToTag.map(p => p.id);
+    console.log(`[UploadPage] Queueing ${photoIds.length} photos for auto-tagging`);
+    queuePhotosForTagging(photoIds);
+
+    // Clean up from pending ref
+    photoIds.forEach(id => pendingAutoTagRef.current.delete(id));
+  }, [photos, autoTagOnUpload, isAiTaggingDisabledByAdmin, isAiServiceUnavailable, queuePhotosForTagging, hasBeenTagged]);
+
+  // Poll for any remaining untagged photos (catches race conditions)
+  useEffect(() => {
+    if (!autoTagOnUpload || isAiTaggingDisabledByAdmin || isAiServiceUnavailable) return;
+    if (pendingAutoTagRef.current.size === 0) return;
+
+    // Set up an interval to check for late-arriving photos
+    const pollInterval = setInterval(() => {
+      const photosToTag = photos.filter(
+        (p) =>
+          p.status === "PROCESSED" &&
+          p.tags.length === 0 &&
+          !hasBeenTagged(p.id) &&
+          pendingAutoTagRef.current.has(p.id)
+      );
+
+      if (photosToTag.length > 0) {
+        const photoIds = photosToTag.map(p => p.id);
+        console.log(`[UploadPage] Poll found ${photoIds.length} untagged photos`);
+        queuePhotosForTagging(photoIds);
+        photoIds.forEach(id => pendingAutoTagRef.current.delete(id));
       }
-    });
-  }, [photos, autoTagOnUpload, isAiTaggingDisabledByAdmin, refresh]);
+
+      // Stop polling if no more pending photos
+      if (pendingAutoTagRef.current.size === 0) {
+        clearInterval(pollInterval);
+      }
+    }, 1000); // Check every second
+
+    return () => clearInterval(pollInterval);
+  }, [photos, autoTagOnUpload, isAiTaggingDisabledByAdmin, isAiServiceUnavailable, queuePhotosForTagging, hasBeenTagged]);
 
   // Perform the actual upload (separated so it can be called after warning dialog)
   const performUpload = useCallback(
@@ -487,17 +523,19 @@ export function UploadPage() {
           </Card>
 
           {/* AI Auto-Tagging Toggle */}
-          <Card className={`p-4 ${isAiTaggingDisabledByAdmin ? "opacity-60" : ""}`}>
+          <Card className={`p-4 ${isAiTaggingDisabledByAdmin || isAiServiceUnavailable ? "opacity-60" : ""}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
                 <h3 className="text-sm font-medium flex items-center gap-2">
-                  {isAiTaggingDisabledByAdmin ? (
+                  {isAiServiceUnavailable ? (
+                    <WifiOff className="h-4 w-4 text-slate-400" />
+                  ) : isAiTaggingDisabledByAdmin ? (
                     <ShieldAlert className="h-4 w-4 text-slate-400" />
                   ) : (
                     <Sparkles className="h-4 w-4 text-amber-500" />
                   )}
                   AI Auto-Tagging
-                  {!isAiTaggingDisabledByAdmin && (
+                  {!isAiTaggingDisabledByAdmin && !isAiServiceUnavailable && (
                     <Tooltip
                       content={
                         <div className="text-left space-y-1 min-w-[160px]">
@@ -512,12 +550,24 @@ export function UploadPage() {
                   )}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {isAiTaggingDisabledByAdmin
+                  {isAiServiceUnavailable
+                    ? "AI service is not running"
+                    : isAiTaggingDisabledByAdmin
                     ? "Disabled by administrator"
                     : "Automatically tag photos on upload using AI"}
                 </p>
               </div>
-              {isAiTaggingDisabledByAdmin ? (
+              {isAiServiceUnavailable ? (
+                <Tooltip content="AI service is not running. Start the service to enable auto-tagging.">
+                  <span>
+                    <Switch
+                      checked={false}
+                      onCheckedChange={() => {}}
+                      disabled={true}
+                    />
+                  </span>
+                </Tooltip>
+              ) : isAiTaggingDisabledByAdmin ? (
                 <Tooltip content="AI tagging has been disabled by an administrator">
                   <span>
                     <Switch
@@ -534,7 +584,15 @@ export function UploadPage() {
                 />
               )}
             </div>
-            {isAiTaggingDisabledByAdmin && (
+            {isAiServiceUnavailable && (
+              <div className="mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded-md">
+                <p className="text-xs text-red-600 dark:text-red-400 flex items-start gap-1.5">
+                  <WifiOff className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                  AI service is not running. Start the service to enable auto-tagging.
+                </p>
+              </div>
+            )}
+            {!isAiServiceUnavailable && isAiTaggingDisabledByAdmin && (
               <div className="mt-3 p-2 bg-slate-500/10 border border-slate-500/20 rounded-md">
                 <p className="text-xs text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
                   <ShieldAlert className="h-3 w-3 mt-0.5 flex-shrink-0" />
@@ -542,7 +600,7 @@ export function UploadPage() {
                 </p>
               </div>
             )}
-            {!isAiTaggingDisabledByAdmin && autoTagOnUpload && (
+            {!isAiServiceUnavailable && !isAiTaggingDisabledByAdmin && autoTagOnUpload && (
               <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded-md">
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   Note: AI tagging uses OpenAI API and incurs additional costs per image analyzed.
@@ -679,6 +737,7 @@ export function UploadPage() {
           </div>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

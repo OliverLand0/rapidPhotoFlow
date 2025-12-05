@@ -4,6 +4,7 @@ import { Upload, Grid3X3, Info, User, LogIn, Share2, Shield } from "lucide-react
 import { cn } from "../lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { StatusSummaryBar } from "./shared/StatusSummaryBar";
+import { TaggingProgressPanel } from "./shared/TaggingProgressPanel";
 import { usePhotos } from "../lib/PhotosContext";
 import { useAuth } from "../contexts/AuthContext";
 import { AboutDialog } from "./AboutDialog";
@@ -123,6 +124,9 @@ export function Layout() {
           )}
         </div>
       </footer>
+
+      {/* Global AI Tagging Progress Panel */}
+      <TaggingProgressPanel />
     </div>
   );
 }

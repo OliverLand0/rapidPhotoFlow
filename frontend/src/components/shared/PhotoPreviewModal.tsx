@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Check, XCircle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles, Keyboard, Share2, AlertCircle, ShieldAlert } from "lucide-react";
+import { X, Check, XCircle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles, Keyboard, Share2, AlertCircle, ShieldAlert, WifiOff } from "lucide-react";
 import { Button } from "../ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { TagEditor } from "./TagEditor";
 import { useToast } from "../ui/toast";
 import { useAuth } from "../../contexts/AuthContext";
+import { useAIService } from "../../contexts/AIServiceContext";
 import { photoClient, aiClient } from "../../lib/api/client";
 import { formatFileSize, formatRelativeTime } from "../../lib/utils";
 import type { Photo } from "../../lib/api/types";
@@ -34,11 +35,13 @@ export function PhotoPreviewModal({
   const [showShareModal, setShowShareModal] = useState(false);
   const { toast } = useToast();
   const { aiTaggingEnabled: userAiTaggingEnabled } = useAuth();
+  const { isAvailable: isAiServiceAvailable, isChecking: isAiServiceChecking } = useAIService();
 
   // Determine AI tagging disabled state and reason
   const isAiTaggingDisabledByAdmin = !userAiTaggingEnabled;
   const isAiTaggingDisabledByFormat = photo.aiTaggingEnabled === false;
-  const isAiTaggingDisabled = isAiTaggingDisabledByAdmin || isAiTaggingDisabledByFormat;
+  const isAiServiceUnavailable = !isAiServiceAvailable && !isAiServiceChecking;
+  const isAiTaggingDisabled = isAiTaggingDisabledByAdmin || isAiTaggingDisabledByFormat || isAiServiceUnavailable;
 
   const canApprove = photo.status === "PROCESSED" || photo.status === "REJECTED";
   const canReject = photo.status === "PROCESSED" || photo.status === "FAILED" || photo.status === "APPROVED";
@@ -346,6 +349,8 @@ export function PhotoPreviewModal({
                     >
                       {isAutoTagging ? (
                         <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                      ) : isAiServiceUnavailable ? (
+                        <WifiOff className="h-3 w-3 mr-1 text-muted-foreground" />
                       ) : isAiTaggingDisabledByAdmin ? (
                         <ShieldAlert className="h-3 w-3 mr-1 text-muted-foreground" />
                       ) : isAiTaggingDisabledByFormat ? (
@@ -355,16 +360,24 @@ export function PhotoPreviewModal({
                       )}
                       Auto-tag
                     </Button>
+                    {/* Tooltip for service unavailable state */}
+                    {isAiServiceUnavailable && (
+                      <div className="absolute right-0 bottom-full mb-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        <p className="text-muted-foreground">
+                          AI service is not available
+                        </p>
+                      </div>
+                    )}
                     {/* Tooltip for admin-disabled state */}
-                    {isAiTaggingDisabledByAdmin && (
+                    {!isAiServiceUnavailable && isAiTaggingDisabledByAdmin && (
                       <div className="absolute right-0 bottom-full mb-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                         <p className="text-muted-foreground">
                           AI tagging has been disabled by an administrator
                         </p>
                       </div>
                     )}
-                    {/* Tooltip for format-disabled state (only show if not admin-disabled) */}
-                    {!isAiTaggingDisabledByAdmin && isAiTaggingDisabledByFormat && (
+                    {/* Tooltip for format-disabled state (only show if not admin-disabled or service unavailable) */}
+                    {!isAiServiceUnavailable && !isAiTaggingDisabledByAdmin && isAiTaggingDisabledByFormat && (
                       <div className="absolute right-0 bottom-full mb-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                         <p className="text-muted-foreground">
                           Format not compatible with AI tagging
@@ -378,15 +391,22 @@ export function PhotoPreviewModal({
                     )}
                   </div>
                 </div>
+                {/* Show warning if AI service is unavailable */}
+                {isAiServiceUnavailable && (
+                  <div className="mb-2 p-2 bg-red-500/10 border border-red-500/20 rounded text-xs text-red-600 dark:text-red-400 flex items-start gap-1.5">
+                    <WifiOff className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span>AI service is not running. Start the service to enable auto-tagging.</span>
+                  </div>
+                )}
                 {/* Show warning if AI tagging is disabled by admin */}
-                {isAiTaggingDisabledByAdmin && (
+                {!isAiServiceUnavailable && isAiTaggingDisabledByAdmin && (
                   <div className="mb-2 p-2 bg-slate-500/10 border border-slate-500/20 rounded text-xs text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
                     <ShieldAlert className="h-3 w-3 mt-0.5 flex-shrink-0" />
                     <span>AI tagging has been disabled by an administrator.</span>
                   </div>
                 )}
                 {/* Show warning if AI tagging is disabled for this photo's format */}
-                {!isAiTaggingDisabledByAdmin && isAiTaggingDisabledByFormat && (
+                {!isAiServiceUnavailable && !isAiTaggingDisabledByAdmin && isAiTaggingDisabledByFormat && (
                   <div className="mb-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
                     <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
                     <span>This photo's format ({photo.mimeType}) is not compatible with AI tagging. Re-upload with conversion enabled.</span>
