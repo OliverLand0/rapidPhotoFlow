@@ -21,8 +21,9 @@ public interface EventLogRepository extends JpaRepository<EventLogEntity, UUID> 
 
     void deleteByPhotoId(UUID photoId);
 
-    // User usage statistics - count TAG_ADDED events for photos uploaded by a user
-    @Query("SELECT COUNT(e) FROM EventLogEntity e JOIN PhotoEntity p ON e.photoId = p.id " +
-           "WHERE p.uploadedByUserId = :userId AND e.eventType = 'TAG_ADDED'")
+    // User usage statistics - count TAG_ADDED events directly by userId
+    // This counts ALL tagging events historically, not just for existing photos
+    @Query("SELECT COUNT(e) FROM EventLogEntity e " +
+           "WHERE e.userId = :userId AND e.eventType = 'TAG_ADDED'")
     long countAutoTagEventsByUserId(@Param("userId") UUID userId);
 }

@@ -23,4 +23,7 @@ export default defineConfig({
     __BUILD_VERSION__: JSON.stringify(buildVersion),
     __GIT_BRANCH__: JSON.stringify(gitBranch),
   },
+  server: {
+    allowedHosts: ['host.docker.internal'],
+  },
 })

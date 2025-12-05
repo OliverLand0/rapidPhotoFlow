@@ -26,7 +26,10 @@ const resolveApiUrl = (url: string | null): string | null => {
   if (!url) return null;
   // In dev mode, prepend the backend URL for relative API paths
   if (import.meta.env.DEV && url.startsWith("/api/")) {
-    return `http://localhost:8080${url}`;
+    const apiHost = typeof window !== 'undefined' && window.location.hostname === 'host.docker.internal'
+      ? 'host.docker.internal'
+      : 'localhost';
+    return `http://${apiHost}:8080${url}`;
   }
   return url;
 };

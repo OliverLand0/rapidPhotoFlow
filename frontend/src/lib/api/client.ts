@@ -30,10 +30,15 @@ import type {
 import { getAccessToken } from "../auth/cognitoConfig";
 
 // Use relative URLs in production (CloudFront routes /api/* and /ai/* to backend services)
-// Use localhost in development
+// Use localhost in development, or host.docker.internal when accessed from Docker
 const isDev = import.meta.env.DEV;
-export const API_BASE = isDev ? "http://localhost:8080/api" : "/api";
-const AI_SERVICE_BASE = isDev ? "http://localhost:3001/ai" : "/ai";
+const apiHost = isDev
+  ? (typeof window !== 'undefined' && window.location.hostname === 'host.docker.internal'
+      ? 'host.docker.internal'
+      : 'localhost')
+  : '';
+export const API_BASE = isDev ? `http://${apiHost}:8080/api` : "/api";
+const AI_SERVICE_BASE = isDev ? `http://${apiHost}:3001/ai` : "/ai";
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const token = await getAccessToken();
@@ -274,6 +279,17 @@ export interface AutoTagResponse {
   failedTags?: string[];
   applied?: boolean;
   error?: string;
+  photoId?: string;
+}
+
+export interface BatchAutoTagResponse {
+  success: boolean;
+  total: number;
+  processed: number;
+  succeeded: number;
+  failed: number;
+  results: AutoTagResponse[];
+  error?: string;
 }
 
 export const aiClient = {
@@ -283,7 +299,7 @@ export const aiClient = {
   async healthCheck(): Promise<boolean> {
     try {
       // Use /ai/health which works in both dev (localhost:3001/ai/health) and prod (/ai/health via CloudFront)
-      const healthUrl = isDev ? "http://localhost:3001/health" : "/ai/health";
+      const healthUrl = isDev ? `http://${apiHost}:3001/health` : "/ai/health";
       const response = await fetch(healthUrl);
       return response.ok;
     } catch {
@@ -309,6 +325,25 @@ export const aiClient = {
       method: "POST",
       body: JSON.stringify({ photoId }),
     });
+  },
+
+  /**
+   * Batch analyze and apply tags to multiple photos
+   * OPTIMIZED: Combines multiple images per API call to reduce costs
+   * @param photoIds - Array of photo IDs to process
+   * @param imagesPerRequest - Number of images to combine per API call (1-10, default 5)
+   */
+  async batchAutoTag(
+    photoIds: string[],
+    imagesPerRequest: number = 5
+  ): Promise<BatchAutoTagResponse> {
+    return fetchJson<BatchAutoTagResponse>(
+      `${AI_SERVICE_BASE}/batch-analyze-and-apply`,
+      {
+        method: "POST",
+        body: JSON.stringify({ photoIds, imagesPerRequest }),
+      }
+    );
   },
 };
 
@@ -535,7 +570,7 @@ export const shareClient = {
 };
 
 // Public share client (no auth required)
-const PUBLIC_SHARE_BASE = isDev ? "http://localhost:8080/s" : "/s";
+const PUBLIC_SHARE_BASE = isDev ? `http://${apiHost}:8080/s` : "/s";
 
 export const publicShareClient = {
   async getShareInfo(token: string): Promise<PublicShareResponse> {
