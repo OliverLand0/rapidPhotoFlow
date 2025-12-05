@@ -1,18 +1,30 @@
 // Use relative URLs in production (CloudFront routes /api/* to backend)
-// Use localhost in development
+// Use localhost in development, or host.docker.internal when accessed from Docker
 const isDev = import.meta.env.DEV;
-const API_BASE = isDev ? "http://localhost:8080" : "";
+const apiHost = isDev
+  ? (typeof window !== 'undefined' && window.location.hostname === 'host.docker.internal'
+      ? 'host.docker.internal'
+      : 'localhost')
+  : '';
+const API_BASE = isDev ? `http://${apiHost}:8080` : "";
 
 export interface SyncUserRequest {
   email: string;
   username: string;
 }
 
+export type UserRole = "USER" | "ADMIN";
+export type UserStatus = "ACTIVE" | "SUSPENDED" | "PENDING" | "DELETED";
+
 export interface UserDTO {
   id: string;
   email: string;
   username: string;
+  role: UserRole;
+  status: UserStatus;
+  lastLoginAt: string | null;
   createdAt: string;
+  aiTaggingEnabled: boolean | null;
 }
 
 export interface UpdateProfileRequest {

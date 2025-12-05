@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * Security configuration for local development.
- * Disables JWT authentication and permits all requests.
+ * Enables JWT authentication with Cognito but with relaxed CORS.
  * Only active when SPRING_PROFILES_ACTIVE=local
  */
 @Configuration
@@ -33,8 +33,21 @@ public class LocalSecurityConfig {
             // Disable CSRF for API
             .csrf(csrf -> csrf.disable())
 
-            // Permit all requests in local development
-            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+            // Configure JWT authentication
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}))
+
+            // Permit health checks and public endpoints, require auth for others
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers("/api/public/**").permitAll()
+                .requestMatchers("/s/**").permitAll()  // Public share endpoints
+                .requestMatchers("/api/photos/*/content").permitAll()
+                .requestMatchers("/api/photos/*/preview").permitAll()
+                .requestMatchers("/api/photos/*/thumbnail").permitAll()
+                .requestMatchers("/api/internal/**").permitAll()  // Internal service-to-service APIs
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .anyRequest().authenticated()
+            );
 
         return http.build();
     }
@@ -46,7 +59,8 @@ public class LocalSecurityConfig {
             "http://localhost:5173",
             "http://localhost:3000",
             "http://127.0.0.1:5173",
-            "http://127.0.0.1:3000"
+            "http://127.0.0.1:3000",
+            "http://host.docker.internal:5173"  // For MCP browser access from Docker
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));

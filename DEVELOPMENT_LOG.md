@@ -84,11 +84,11 @@ PENDING → PROCESSING → PROCESSED → APPROVED
 
 | Layer | Technology | Rationale |
 |-------|------------|-----------|
-| Frontend | React 18 + TypeScript + Vite | Fast dev experience, type safety |
-| Styling | TailwindCSS + shadcn/ui | Production-ready components |
+| Frontend | React 19 + TypeScript + Vite 7 | Fast dev experience, type safety |
+| Styling | TailwindCSS 4 + shadcn/ui | Production-ready components |
 | Backend | Spring Boot 3.2 (Java 21) | Enterprise-grade, DDD-friendly |
 | AI Service | Node.js + Express | Lightweight, OpenAI SDK support |
-| Storage | Initially in-memory | Fast iteration, later migrated |
+| Storage | Initially in-memory, migrated to RDS PostgreSQL + S3 | Fast iteration, then production-ready |
 
 ---
 
@@ -628,3 +628,9 @@ RapidPhotoFlow demonstrates that modern AI tools can build sophisticated, produc
 - Proper infrastructure planning
 
 The project evolved from a simple photo upload demo to a full-featured SaaS application with AI tagging, user authentication, and cloud deployment - all developed through AI-assisted coding.
+
+---
+
+## Branch Sync Log
+
+- **2025-12-01**: Synced `sync-list-plan-files` branch with `list-plan-files` base branch for continued feature development.

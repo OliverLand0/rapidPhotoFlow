@@ -24,16 +24,19 @@ import {
   type ResetPasswordParams,
   type CognitoUserInfo,
 } from "../lib/auth/cognitoConfig";
-import { syncUser } from "../lib/api/authApi";
+import { syncUser, type UserRole } from "../lib/api/authApi";
 
 interface AuthState {
   user: CognitoUserInfo | null;
+  userRole: UserRole | null;
+  aiTaggingEnabled: boolean;
   isAuthenticated: boolean;
   isLoading: boolean;
   isConfigured: boolean;
 }
 
 interface AuthContextValue extends AuthState {
+  isAdmin: boolean;
   login: (params: LoginParams) => Promise<void>;
   logout: () => void;
   signup: (params: SignUpParams) => Promise<void>;
@@ -53,6 +56,8 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [state, setState] = useState<AuthState>({
     user: null,
+    userRole: null,
+    aiTaggingEnabled: true,
     isAuthenticated: false,
     isLoading: true,
     isConfigured: isCognitoConfigured(),
@@ -70,8 +75,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     try {
       const userInfo = await getCurrentUserInfo();
+      let userRole: UserRole | null = null;
+      let aiTaggingEnabled = true;
+
+      // Sync with backend to get user role and settings
+      if (userInfo) {
+        try {
+          const token = await getAccessToken();
+          if (token) {
+            const syncedUser = await syncUser(
+              { email: userInfo.email, username: userInfo.username },
+              token
+            );
+            userRole = syncedUser.role;
+            aiTaggingEnabled = syncedUser.aiTaggingEnabled !== false;
+          }
+        } catch (syncError) {
+          console.warn("Failed to sync user with backend:", syncError);
+        }
+      }
+
       setState({
         user: userInfo,
+        userRole,
+        aiTaggingEnabled,
         isAuthenticated: !!userInfo,
         isLoading: false,
         isConfigured: true,
@@ -79,6 +106,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch {
       setState({
         user: null,
+        userRole: null,
+        aiTaggingEnabled: true,
         isAuthenticated: false,
         isLoading: false,
         isConfigured: true,
@@ -95,19 +124,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await cognitoSignIn(params);
       const userInfo = await getCurrentUserInfo();
+      let userRole: UserRole | null = null;
+      let aiTaggingEnabled = true;
 
       if (userInfo) {
         // Sync user with backend
         try {
           const token = await getAccessToken();
           if (token) {
-            await syncUser(
+            const syncedUser = await syncUser(
               {
                 email: userInfo.email,
                 username: userInfo.username,
               },
               token
             );
+            userRole = syncedUser.role;
+            aiTaggingEnabled = syncedUser.aiTaggingEnabled !== false;
           }
         } catch (syncError) {
           console.warn("Failed to sync user with backend:", syncError);
@@ -117,6 +150,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       setState({
         user: userInfo,
+        userRole,
+        aiTaggingEnabled,
         isAuthenticated: !!userInfo,
         isLoading: false,
         isConfigured: true,
@@ -131,6 +166,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     cognitoSignOut();
     setState({
       user: null,
+      userRole: null,
+      aiTaggingEnabled: true,
       isAuthenticated: false,
       isLoading: false,
       isConfigured: true,
@@ -173,6 +210,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value: AuthContextValue = {
     ...state,
+    isAdmin: state.userRole === "ADMIN",
     login,
     logout,
     signup,

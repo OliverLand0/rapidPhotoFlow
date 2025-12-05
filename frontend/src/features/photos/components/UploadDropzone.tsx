@@ -35,11 +35,26 @@ export function UploadDropzone({ onUpload, disabled }: UploadDropzoneProps) {
     }, 2000);
   }, []);
 
+  // Check if a file is an image based on type or extension
+  const isImageFile = useCallback((file: File) => {
+    // Browser-recognized image types
+    if (file.type.startsWith("image/")) return true;
+
+    // RAW and other formats that browsers don't recognize
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    const rawExtensions = [
+      "cr2", "cr3", "nef", "arw", "dng", "orf", "raf", "rw2", // RAW formats
+      "heic", "heif", // Apple HEIC
+      "psd", "ico", "svg", "avif" // Other image formats
+    ];
+    return ext ? rawExtensions.includes(ext) : false;
+  }, []);
+
   const handleUpload = useCallback(
     async (files: File[]) => {
       if (disabled || isUploading || files.length === 0) return;
 
-      const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+      const imageFiles = files.filter(isImageFile);
       if (imageFiles.length === 0) return;
 
       setFileCount(imageFiles.length);
@@ -66,7 +81,7 @@ export function UploadDropzone({ onUpload, disabled }: UploadDropzoneProps) {
         setIsUploading(false);
       }
     },
-    [onUpload, disabled, isUploading, resetUploadState]
+    [onUpload, disabled, isUploading, resetUploadState, isImageFile]
   );
 
   const handleDrop = useCallback(
@@ -101,7 +116,7 @@ export function UploadDropzone({ onUpload, disabled }: UploadDropzoneProps) {
     >
       <input
         type="file"
-        accept="image/*"
+        accept="image/*,.cr2,.cr3,.nef,.arw,.dng,.orf,.raf,.rw2,.heic,.heif,.psd,.ico,.svg,.avif"
         multiple
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         onChange={handleFileInput}
@@ -138,7 +153,7 @@ export function UploadDropzone({ onUpload, disabled }: UploadDropzoneProps) {
               Drop photos here or click to upload
             </p>
             <p className="text-sm text-muted-foreground">
-              Supports JPG, PNG, and other image formats
+              Supports JPG, PNG, HEIC, RAW (CR2, NEF, ARW), TIFF, BMP, SVG, and more
             </p>
           </>
         )}

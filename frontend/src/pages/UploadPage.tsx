@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload, Sparkles, AlertTriangle } from "lucide-react";
+import { ArrowRight, CheckCircle, HardDrive, Image, Inbox, Upload, Sparkles, AlertTriangle, RefreshCw, Info, HelpCircle, ShieldAlert, WifiOff } from "lucide-react";
 import { UploadDropzone } from "../features/photos/components/UploadDropzone";
 import { StatusBadge } from "../components/shared/StatusBadge";
 import { Button } from "../components/ui/button";
@@ -9,9 +9,12 @@ import { Progress } from "../components/ui/progress";
 import { Switch } from "../components/ui/switch";
 import { Dialog, DialogHeader, DialogContent } from "../components/ui/dialog";
 import { EmptyState } from "../components/shared/EmptyState";
-import { photoClient, aiClient } from "../lib/api/client";
+import { Tooltip } from "../components/ui/tooltip";
+import { photoClient, API_BASE } from "../lib/api/client";
 import { usePhotos } from "../lib/PhotosContext";
 import { useAISettings } from "../hooks/useAISettings";
+import { useAuth } from "../contexts/AuthContext";
+import { useAIService } from "../contexts/AIServiceContext";
 import { formatRelativeTime, formatFileSize } from "../lib/utils";
 
 const BULK_UPLOAD_WARNING_THRESHOLD = 100;
@@ -25,22 +28,32 @@ interface UploadingFile {
 
 export function UploadPage() {
   const navigate = useNavigate();
-  const { photos, refresh, setUploadingCount } = usePhotos();
+  const { photos, refresh, setPhotos, setUploadingCount } = usePhotos();
   const { autoTagOnUpload, setAutoTagOnUpload } = useAISettings();
+  const { aiTaggingEnabled: userAiTaggingEnabled } = useAuth();
+  const { isAvailable: isAiServiceAvailable, isChecking: isAiServiceChecking, queuePhotosForTagging, hasBeenTagged } = useAIService();
+
+  // Check if AI tagging is disabled by admin
+  const isAiTaggingDisabledByAdmin = !userAiTaggingEnabled;
+
+  // Check if AI service is unavailable
+  const isAiServiceUnavailable = !isAiServiceAvailable && !isAiServiceChecking;
 
   // Upload state for preview
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Image conversion toggle (for AI compatibility)
+  const [convertToCompatible, setConvertToCompatible] = useState(true);
+
   // Bulk upload warning state
   const [showBulkWarning, setShowBulkWarning] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const pendingProgressCallback = useRef<((progress: number, speed: number) => void) | null>(null);
 
-  // Track photos pending AI tagging
+  // Track photos pending AI tagging (for this upload session)
   const pendingAutoTagRef = useRef<Set<string>>(new Set());
-  const taggedPhotosRef = useRef<Set<string>>(new Set());
 
   // Show recently completed photos (processed or failed)
   const completedPhotos = photos.filter((p) =>
@@ -55,36 +68,68 @@ export function UploadPage() {
   // Calculate total storage used
   const totalStorageBytes = photos.reduce((acc, p) => acc + p.sizeBytes, 0);
 
-  // Auto-tag photos when they finish processing (if enabled)
+  // Auto-tag photos when they finish processing (if enabled and not admin-disabled)
+  // Uses the global AIServiceContext for tagging which persists across navigation
   useEffect(() => {
-    if (!autoTagOnUpload) return;
+    if (!autoTagOnUpload || isAiTaggingDisabledByAdmin || isAiServiceUnavailable) return;
 
-    // Find photos that are pending auto-tag and have finished processing
+    // Find photos that need tagging:
+    // - PROCESSED status with no tags
+    // - Not already tagged this session (tracked by context)
+    // - In pendingAutoTagRef (uploaded this session with auto-tag enabled)
     const photosToTag = photos.filter(
       (p) =>
-        pendingAutoTagRef.current.has(p.id) &&
         p.status === "PROCESSED" &&
-        !taggedPhotosRef.current.has(p.id) &&
-        p.tags.length === 0 // Only tag if no tags yet
+        p.tags.length === 0 &&
+        !hasBeenTagged(p.id) &&
+        pendingAutoTagRef.current.has(p.id)
     );
 
-    // Trigger AI tagging for each
-    photosToTag.forEach(async (photo) => {
-      taggedPhotosRef.current.add(photo.id);
-      pendingAutoTagRef.current.delete(photo.id);
-      try {
-        console.log(`Auto-tagging photo: ${photo.filename}`);
-        await aiClient.autoTag(photo.id);
-        refresh(); // Refresh to get updated tags
-      } catch (error) {
-        console.error(`Failed to auto-tag ${photo.filename}:`, error);
+    if (photosToTag.length === 0) return;
+
+    // Queue for tagging via context (handles debouncing, batching, progress UI)
+    const photoIds = photosToTag.map(p => p.id);
+    console.log(`[UploadPage] Queueing ${photoIds.length} photos for auto-tagging`);
+    queuePhotosForTagging(photoIds);
+
+    // Clean up from pending ref
+    photoIds.forEach(id => pendingAutoTagRef.current.delete(id));
+  }, [photos, autoTagOnUpload, isAiTaggingDisabledByAdmin, isAiServiceUnavailable, queuePhotosForTagging, hasBeenTagged]);
+
+  // Poll for any remaining untagged photos (catches race conditions)
+  useEffect(() => {
+    if (!autoTagOnUpload || isAiTaggingDisabledByAdmin || isAiServiceUnavailable) return;
+    if (pendingAutoTagRef.current.size === 0) return;
+
+    // Set up an interval to check for late-arriving photos
+    const pollInterval = setInterval(() => {
+      const photosToTag = photos.filter(
+        (p) =>
+          p.status === "PROCESSED" &&
+          p.tags.length === 0 &&
+          !hasBeenTagged(p.id) &&
+          pendingAutoTagRef.current.has(p.id)
+      );
+
+      if (photosToTag.length > 0) {
+        const photoIds = photosToTag.map(p => p.id);
+        console.log(`[UploadPage] Poll found ${photoIds.length} untagged photos`);
+        queuePhotosForTagging(photoIds);
+        photoIds.forEach(id => pendingAutoTagRef.current.delete(id));
       }
-    });
-  }, [photos, autoTagOnUpload, refresh]);
+
+      // Stop polling if no more pending photos
+      if (pendingAutoTagRef.current.size === 0) {
+        clearInterval(pollInterval);
+      }
+    }, 1000); // Check every second
+
+    return () => clearInterval(pollInterval);
+  }, [photos, autoTagOnUpload, isAiTaggingDisabledByAdmin, isAiServiceUnavailable, queuePhotosForTagging, hasBeenTagged]);
 
   // Perform the actual upload (separated so it can be called after warning dialog)
   const performUpload = useCallback(
-    async (files: File[], onProgress: (progress: number, speed: number) => void, enableAutoTag: boolean) => {
+    async (files: File[], onProgress: (progress: number, speed: number) => void, enableAutoTag: boolean, enableConversion: boolean = true) => {
       // Create previews for the files being uploaded
       const uploading: UploadingFile[] = files.map((file) => ({
         name: file.name,
@@ -138,13 +183,26 @@ export function UploadPage() {
             currentSpeed = speed;
             // Also update speed immediately for responsiveness
             onProgress(visualProgress, speed);
-          });
+          }, { convertToCompatible: enableConversion });
 
           const response = await promise;
           // Track uploaded photo IDs for auto-tagging and linking
-          response.items.forEach((photo) => {
+          // Map both the final filename AND original filename to the photo ID
+          // (conversion may change the filename extension, e.g., photo.cr2 -> photo.jpg)
+          response.items.forEach((photo, idx) => {
             uploadedPhotoIds.push(photo.id);
             filenameToPhotoId[photo.filename] = photo.id;
+            // Also map the original filename from the batch
+            const originalFile = batch[idx];
+            if (originalFile && originalFile.name !== photo.filename) {
+              filenameToPhotoId[originalFile.name] = photo.id;
+            }
+          });
+          // Immediately merge uploaded photos into state so thumbnails can display
+          setPhotos((prev) => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const newPhotos = response.items.filter(p => !existingIds.has(p.id));
+            return [...newPhotos, ...prev];
           });
         }
 
@@ -192,8 +250,11 @@ export function UploadPage() {
 
   const handleUpload = useCallback(
     async (files: File[], onProgress: (progress: number, speed: number) => void) => {
+      // If admin disabled AI tagging, don't show bulk warning and don't enable auto-tag
+      const effectiveAutoTag = autoTagOnUpload && !isAiTaggingDisabledByAdmin;
+
       // Check if we need to show bulk upload warning
-      if (autoTagOnUpload && files.length > BULK_UPLOAD_WARNING_THRESHOLD) {
+      if (effectiveAutoTag && files.length > BULK_UPLOAD_WARNING_THRESHOLD) {
         // Store pending files and callback for after user confirms
         setPendingFiles(files);
         pendingProgressCallback.current = onProgress;
@@ -202,30 +263,30 @@ export function UploadPage() {
       }
 
       // No warning needed, proceed with upload
-      await performUpload(files, onProgress, autoTagOnUpload);
+      await performUpload(files, onProgress, effectiveAutoTag, convertToCompatible);
     },
-    [autoTagOnUpload, performUpload]
+    [autoTagOnUpload, isAiTaggingDisabledByAdmin, convertToCompatible, performUpload]
   );
 
   // Handle bulk warning dialog actions
   const handleBulkWarningProceed = useCallback(async () => {
     setShowBulkWarning(false);
     if (pendingFiles.length > 0 && pendingProgressCallback.current) {
-      await performUpload(pendingFiles, pendingProgressCallback.current, true);
+      await performUpload(pendingFiles, pendingProgressCallback.current, true, convertToCompatible);
     }
     setPendingFiles([]);
     pendingProgressCallback.current = null;
-  }, [pendingFiles, performUpload]);
+  }, [pendingFiles, performUpload, convertToCompatible]);
 
   const handleBulkWarningDisableAI = useCallback(async () => {
     setShowBulkWarning(false);
     setAutoTagOnUpload(false);
     if (pendingFiles.length > 0 && pendingProgressCallback.current) {
-      await performUpload(pendingFiles, pendingProgressCallback.current, false);
+      await performUpload(pendingFiles, pendingProgressCallback.current, false, convertToCompatible);
     }
     setPendingFiles([]);
     pendingProgressCallback.current = null;
-  }, [pendingFiles, performUpload, setAutoTagOnUpload]);
+  }, [pendingFiles, performUpload, setAutoTagOnUpload, convertToCompatible]);
 
   const handleBulkWarningCancel = useCallback(() => {
     setShowBulkWarning(false);
@@ -288,45 +349,73 @@ export function UploadPage() {
 
               {/* Photo Grid Preview */}
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[200px] overflow-y-auto">
-                {uploadingFiles.map((file, index) => (
-                  <div
-                    key={index}
-                    className={`w-full pb-[100%] relative rounded-lg overflow-hidden bg-muted group ${
-                      file.photoId && !isUploading ? "cursor-pointer" : ""
-                    }`}
-                    onClick={() => {
-                      if (file.photoId && !isUploading) {
-                        navigate(`/review?photoId=${file.photoId}`);
-                      }
-                    }}
-                  >
-                    <div className="absolute inset-0">
-                      {file.preview ? (
-                        <img
-                          src={file.preview}
-                          alt={file.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Image className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                      )}
-                      {/* Overlay with file info on hover */}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2">
-                        <p className="text-white text-xs text-center truncate w-full">
-                          {file.name}
-                        </p>
-                        <p className="text-white/70 text-xs">
-                          {formatFileSize(file.size)}
-                        </p>
-                        {file.photoId && !isUploading && (
-                          <p className="text-white/90 text-xs mt-1">Click to view</p>
+                {uploadingFiles.map((file, index) => {
+                  // Check if server has a preview available for this photo
+                  const serverPhoto = file.photoId ? photos.find(p => p.id === file.photoId) : null;
+
+                  // Determine the best URL to display
+                  // Check both local file extension AND server mimeType (for converted files)
+                  const browserDisplayableMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp'];
+                  const localIsBrowserDisplayable = /\.(jpe?g|png|gif|webp|svg|bmp|ico)$/i.test(file.name);
+                  const serverIsBrowserDisplayable = serverPhoto?.mimeType && browserDisplayableMimeTypes.includes(serverPhoto.mimeType);
+
+                  let displayUrl: string | undefined;
+                  if (serverPhoto?.hasPreview) {
+                    // Server has a generated preview (for RAW files uploaded without conversion)
+                    displayUrl = `${API_BASE}/photos/${serverPhoto.id}/preview`;
+                  } else if (serverPhoto?.id && serverIsBrowserDisplayable) {
+                    // Server file is browser-displayable (either originally or after conversion)
+                    displayUrl = `${API_BASE}/photos/${serverPhoto.id}/content`;
+                  } else if (localIsBrowserDisplayable && file.preview) {
+                    // Fall back to local blob only for browser-displayable files
+                    displayUrl = file.preview;
+                  }
+                  // For RAW files without server preview yet, displayUrl stays undefined -> shows placeholder
+
+                  return (
+                    <div
+                      key={`${index}-${serverPhoto?.hasPreview || false}`}
+                      className={`w-full pb-[100%] relative rounded-lg overflow-hidden bg-muted group ${
+                        file.photoId && !isUploading ? "cursor-pointer" : ""
+                      }`}
+                      onClick={() => {
+                        if (file.photoId && !isUploading) {
+                          navigate(`/review?photoId=${file.photoId}`);
+                        }
+                      }}
+                    >
+                      <div className="absolute inset-0">
+                        {displayUrl ? (
+                          <img
+                            src={displayUrl}
+                            alt={file.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // If image fails to load, hide it and show fallback
+                              (e.target as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Image className="h-8 w-8 text-muted-foreground animate-pulse" />
+                          </div>
                         )}
+                        {/* Overlay with file info on hover */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2">
+                          <p className="text-white text-xs text-center truncate w-full">
+                            {file.name}
+                          </p>
+                          <p className="text-white/70 text-xs">
+                            {formatFileSize(file.size)}
+                          </p>
+                          {file.photoId && !isUploading && (
+                            <p className="text-white/90 text-xs mt-1">Click to view</p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Upload More Button */}
@@ -406,24 +495,112 @@ export function UploadPage() {
             </div>
           </Card>
 
-          {/* AI Auto-Tagging Toggle */}
+          {/* Image Conversion Toggle */}
           <Card className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
                 <h3 className="text-sm font-medium flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  AI Auto-Tagging
+                  <RefreshCw className="h-4 w-4 text-blue-500" />
+                  Convert for AI Compatibility
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Automatically tag photos on upload using AI
+                  Convert TIFF, BMP to JPEG/PNG for AI tagging
                 </p>
               </div>
               <Switch
-                checked={autoTagOnUpload}
-                onCheckedChange={setAutoTagOnUpload}
+                checked={convertToCompatible}
+                onCheckedChange={setConvertToCompatible}
               />
             </div>
-            {autoTagOnUpload && (
+            {!convertToCompatible && (
+              <div className="mt-3 p-2 bg-blue-500/10 border border-blue-500/20 rounded-md">
+                <p className="text-xs text-blue-600 dark:text-blue-400 flex items-start gap-1.5">
+                  <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                  <span>Incompatible formats (TIFF, BMP, HEIC) will not be converted. AI tagging will be disabled for these photos.</span>
+                </p>
+              </div>
+            )}
+          </Card>
+
+          {/* AI Auto-Tagging Toggle */}
+          <Card className={`p-4 ${isAiTaggingDisabledByAdmin || isAiServiceUnavailable ? "opacity-60" : ""}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  {isAiServiceUnavailable ? (
+                    <WifiOff className="h-4 w-4 text-slate-400" />
+                  ) : isAiTaggingDisabledByAdmin ? (
+                    <ShieldAlert className="h-4 w-4 text-slate-400" />
+                  ) : (
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                  )}
+                  AI Auto-Tagging
+                  {!isAiTaggingDisabledByAdmin && !isAiServiceUnavailable && (
+                    <Tooltip
+                      content={
+                        <div className="text-left space-y-1 min-w-[160px]">
+                          <p className="font-semibold">Supported formats:</p>
+                          <p>JPEG, PNG, WebP, GIF</p>
+                          <p className="text-xs text-zinc-400 border-t border-zinc-600 pt-1.5 mt-1.5">TIFF, BMP auto-convert when enabled</p>
+                        </div>
+                      }
+                    >
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-help" />
+                    </Tooltip>
+                  )}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {isAiServiceUnavailable
+                    ? "AI service is not running"
+                    : isAiTaggingDisabledByAdmin
+                    ? "Disabled by administrator"
+                    : "Automatically tag photos on upload using AI"}
+                </p>
+              </div>
+              {isAiServiceUnavailable ? (
+                <Tooltip content="AI service is not running. Start the service to enable auto-tagging.">
+                  <span>
+                    <Switch
+                      checked={false}
+                      onCheckedChange={() => {}}
+                      disabled={true}
+                    />
+                  </span>
+                </Tooltip>
+              ) : isAiTaggingDisabledByAdmin ? (
+                <Tooltip content="AI tagging has been disabled by an administrator">
+                  <span>
+                    <Switch
+                      checked={false}
+                      onCheckedChange={() => {}}
+                      disabled={true}
+                    />
+                  </span>
+                </Tooltip>
+              ) : (
+                <Switch
+                  checked={autoTagOnUpload}
+                  onCheckedChange={setAutoTagOnUpload}
+                />
+              )}
+            </div>
+            {isAiServiceUnavailable && (
+              <div className="mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded-md">
+                <p className="text-xs text-red-600 dark:text-red-400 flex items-start gap-1.5">
+                  <WifiOff className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                  AI service is not running. Start the service to enable auto-tagging.
+                </p>
+              </div>
+            )}
+            {!isAiServiceUnavailable && isAiTaggingDisabledByAdmin && (
+              <div className="mt-3 p-2 bg-slate-500/10 border border-slate-500/20 rounded-md">
+                <p className="text-xs text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
+                  <ShieldAlert className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                  AI tagging has been disabled by an administrator.
+                </p>
+              </div>
+            )}
+            {!isAiServiceUnavailable && !isAiTaggingDisabledByAdmin && autoTagOnUpload && (
               <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded-md">
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   Note: AI tagging uses OpenAI API and incurs additional costs per image analyzed.
@@ -560,6 +737,7 @@ export function UploadPage() {
           </div>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

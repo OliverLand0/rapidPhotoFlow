@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle, XCircle, RefreshCw, X, Trash2 } from "lucide-react";
+import { CheckCircle, XCircle, RefreshCw, X, Trash2, FolderInput } from "lucide-react";
 import { Button } from "../ui/button";
 import { useToast } from "../ui/toast";
 import { photoClient } from "../../lib/api/client";
@@ -10,6 +10,7 @@ interface BulkActionBarProps {
   selectedPhotos: Photo[];
   onClearSelection: () => void;
   onActionComplete: (response: BulkActionResponse) => void;
+  onMoveToFolder?: () => void;
 }
 
 type BulkAction = ActionType | "delete";
@@ -26,6 +27,7 @@ export function BulkActionBar({
   selectedPhotos,
   onClearSelection,
   onActionComplete,
+  onMoveToFolder,
 }: BulkActionBarProps) {
   const [isLoading, setIsLoading] = useState<BulkAction | null>(null);
   const { toast } = useToast();
@@ -145,6 +147,18 @@ export function BulkActionBar({
             )}
             Delete All
           </Button>
+
+          {onMoveToFolder && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onMoveToFolder}
+              disabled={isLoading !== null}
+            >
+              <FolderInput className="w-4 h-4 mr-1.5" />
+              Move to Folder
+            </Button>
+          )}
         </div>
 
         <Button

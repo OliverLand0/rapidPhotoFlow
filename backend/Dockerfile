@@ -30,8 +30,20 @@ RUN addgroup -g 1001 -S appgroup && \
 # Copy the built jar from build stage
 COPY --from=build /app/target/*.jar app.jar
 
-# Install curl for health checks
-RUN apk add --no-cache curl
+# Install curl for health checks and image processing libraries
+# fontconfig, freetype, and libjpeg-turbo improve ImageIO performance
+# libheif-tools for HEIC/HEIF conversion (iPhone photos)
+# libraw for RAW camera format conversion
+RUN apk add --no-cache \
+    curl \
+    fontconfig \
+    freetype \
+    libjpeg-turbo \
+    libheif-tools \
+    libraw
+
+# Create temp directory for image processing
+RUN mkdir -p /tmp/imageconv && chown -R appuser:appgroup /tmp/imageconv
 
 # Change ownership
 RUN chown -R appuser:appgroup /app

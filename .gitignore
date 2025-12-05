@@ -1,6 +1,17 @@
 # Environment files
 ai-service/.env
 frontend/.env
+backend/.env
+.env
+.env.local
+.env.*.local
+
+# Terraform secrets
+terraform/terraform.tfvars
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
 
 # Dependencies
 node_modules/
@@ -9,6 +20,7 @@ node_modules/
 dist/
 build/
 target/
+backend/target/
 
 # IDE
 .idea/
@@ -16,6 +28,9 @@ target/
 *.swp
 *.swo
 .DS_Store
+
+# Claude Code local settings
+.claude/settings.local.json
 
 # Logs
 *.log

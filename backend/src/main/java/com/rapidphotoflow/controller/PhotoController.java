@@ -37,11 +37,12 @@ public class PhotoController {
     private final PhotoService photoService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload photos", description = "Upload one or more photos for processing")
+    @Operation(summary = "Upload photos", description = "Upload one or more photos for processing. Optionally convert incompatible formats for AI tagging.")
     public ResponseEntity<PhotoListResponse> uploadPhotos(
-            @RequestParam("files") List<MultipartFile> files) {
+            @RequestParam("files") List<MultipartFile> files,
+            @RequestParam(value = "convertToCompatible", defaultValue = "true") boolean convertToCompatible) {
 
-        List<Photo> photos = photoService.uploadPhotos(files);
+        List<Photo> photos = photoService.uploadPhotos(files, convertToCompatible);
         List<PhotoDTO> dtos = photos.stream()
                 .map(PhotoDTO::fromEntity)
                 .collect(Collectors.toList());
@@ -50,16 +51,37 @@ public class PhotoController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all photos", description = "Retrieve all photos with optional status and tag filters")
+    @Operation(summary = "Get all photos", description = "Retrieve all photos with optional status, tag, and folder filters")
     public ResponseEntity<PhotoListResponse> getPhotos(
             @RequestParam(required = false) PhotoStatus status,
-            @RequestParam(required = false) String tag) {
+            @RequestParam(required = false) String tag,
+            @RequestParam(required = false) UUID folderId,
+            @RequestParam(required = false, defaultValue = "false") boolean rootOnly) {
 
         List<Photo> photos;
-        if (status != null) {
-            photos = photoService.getPhotosByStatus(status);
+
+        // Handle folder filtering
+        if (rootOnly) {
+            // Get photos at root level (no folder)
+            if (status != null) {
+                photos = photoService.getPhotosByFolderIdAndStatus(null, status);
+            } else {
+                photos = photoService.getPhotosByFolderId(null);
+            }
+        } else if (folderId != null) {
+            // Get photos in specific folder
+            if (status != null) {
+                photos = photoService.getPhotosByFolderIdAndStatus(folderId, status);
+            } else {
+                photos = photoService.getPhotosByFolderId(folderId);
+            }
         } else {
-            photos = photoService.getAllPhotos();
+            // Get all photos (existing behavior)
+            if (status != null) {
+                photos = photoService.getPhotosByStatus(status);
+            } else {
+                photos = photoService.getAllPhotos();
+            }
         }
 
         // Apply tag filter if provided
@@ -109,6 +131,22 @@ public class PhotoController {
                     return ResponseEntity.ok()
                             .contentType(MediaType.parseMediaType(photo.getMimeType()))
                             .body(content);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/preview")
+    @Operation(summary = "Get photo preview", description = "Retrieve a JPEG preview for non-browser-displayable formats")
+    public ResponseEntity<byte[]> getPhotoPreview(@PathVariable UUID id) {
+        return photoService.getPhotoById(id)
+                .map(photo -> {
+                    byte[] preview = photoService.getPreviewContent(id);
+                    if (preview == null) {
+                        return ResponseEntity.notFound().<byte[]>build();
+                    }
+                    return ResponseEntity.ok()
+                            .contentType(MediaType.IMAGE_JPEG)
+                            .body(preview);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

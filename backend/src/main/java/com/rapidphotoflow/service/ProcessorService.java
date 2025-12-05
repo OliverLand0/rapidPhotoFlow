@@ -30,15 +30,40 @@ public class ProcessorService {
 
     // Supported image MIME types
     private static final Set<String> SUPPORTED_MIME_TYPES = Set.of(
+            // ChatGPT-compatible formats
             "image/jpeg",
             "image/jpg",
             "image/png",
             "image/gif",
             "image/webp",
+            // Formats convertible via ImageIO (TwelveMonkeys)
             "image/bmp",
+            "image/x-bmp",
+            "image/x-ms-bmp",
             "image/tiff",
-            "image/heif",
+            "image/x-tiff",
+            "image/x-icon",
+            "image/vnd.microsoft.icon",
+            "image/vnd.adobe.photoshop",
+            "application/x-photoshop",
+            // SVG (converted via Batik)
+            "image/svg+xml",
+            // HEIC/HEIF (require native libheif)
             "image/heic",
+            "image/heif",
+            "image/heic-sequence",
+            "image/heif-sequence",
+            // RAW camera formats (require native dcraw/LibRaw)
+            "image/x-canon-cr2",
+            "image/x-canon-cr3",
+            "image/x-nikon-nef",
+            "image/x-sony-arw",
+            "image/x-adobe-dng",
+            "image/x-olympus-orf",
+            "image/x-fuji-raf",
+            "image/x-panasonic-rw2",
+            "image/x-dcraw",
+            // Other
             "image/avif"
     );
 
@@ -169,9 +194,9 @@ public class ProcessorService {
             return "Unsupported image format: " + (mimeType != null ? mimeType : "unknown");
         }
 
-        // Check file size (reject files over 50MB)
-        if (entity.getSizeBytes() > 50 * 1024 * 1024) {
-            return "File size exceeds 50MB limit";
+        // Check file size (reject files over 150MB)
+        if (entity.getSizeBytes() > 150 * 1024 * 1024) {
+            return "File size exceeds 150MB limit";
         }
 
         // All validations passed

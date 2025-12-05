@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Check, XCircle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles, Keyboard } from "lucide-react";
+import { X, Check, XCircle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles, Keyboard, Share2, AlertCircle, ShieldAlert, WifiOff } from "lucide-react";
 import { Button } from "../ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { TagEditor } from "./TagEditor";
 import { useToast } from "../ui/toast";
+import { useAuth } from "../../contexts/AuthContext";
+import { useAIService } from "../../contexts/AIServiceContext";
 import { photoClient, aiClient } from "../../lib/api/client";
 import { formatFileSize, formatRelativeTime } from "../../lib/utils";
 import type { Photo } from "../../lib/api/types";
+import { CreateShareModal } from "../shares/CreateShareModal";
 
 interface PhotoPreviewModalProps {
   photo: Photo;
@@ -29,7 +32,16 @@ export function PhotoPreviewModal({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAutoTagging, setIsAutoTagging] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const { toast } = useToast();
+  const { aiTaggingEnabled: userAiTaggingEnabled } = useAuth();
+  const { isAvailable: isAiServiceAvailable, isChecking: isAiServiceChecking } = useAIService();
+
+  // Determine AI tagging disabled state and reason
+  const isAiTaggingDisabledByAdmin = !userAiTaggingEnabled;
+  const isAiTaggingDisabledByFormat = photo.aiTaggingEnabled === false;
+  const isAiServiceUnavailable = !isAiServiceAvailable && !isAiServiceChecking;
+  const isAiTaggingDisabled = isAiTaggingDisabledByAdmin || isAiTaggingDisabledByFormat || isAiServiceUnavailable;
 
   const canApprove = photo.status === "PROCESSED" || photo.status === "REJECTED";
   const canReject = photo.status === "PROCESSED" || photo.status === "FAILED" || photo.status === "APPROVED";
@@ -199,11 +211,16 @@ export function PhotoPreviewModal({
           }
           break;
         case "i":
-          // AI Auto-tag
-          if (!isAutoTagging) {
+          // AI Auto-tag (only if enabled)
+          if (!isAutoTagging && !isAiTaggingDisabled) {
             e.preventDefault();
             handleAutoTag();
           }
+          break;
+        case "s":
+          // Share
+          e.preventDefault();
+          setShowShareModal(true);
           break;
         case "?":
           // Toggle shortcuts help
@@ -212,7 +229,7 @@ export function PhotoPreviewModal({
           break;
       }
     },
-    [onClose, handlePrev, handleNext, canApprove, canReject, canRetry, isLoading, isDeleting, isAutoTagging]
+    [onClose, handlePrev, handleNext, canApprove, canReject, canRetry, isLoading, isDeleting, isAutoTagging, isAiTaggingDisabled]
   );
 
   // Global keyboard event listener
@@ -276,7 +293,7 @@ export function PhotoPreviewModal({
             )}
 
             <img
-              src={photoClient.getPhotoContentUrl(photo.id)}
+              src={photoClient.getPhotoDisplayUrl(photo)}
               alt={photo.filename}
               className="max-h-[40vh] md:max-h-[70vh] max-w-full object-contain"
               onError={(e) => {
@@ -322,21 +339,79 @@ export function PhotoPreviewModal({
               <div className="pt-2 border-t border-border">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Tags</p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-xs"
-                    onClick={handleAutoTag}
-                    disabled={isAutoTagging}
-                  >
-                    {isAutoTagging ? (
-                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3 w-3 mr-1" />
+                  <div className="relative group">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-6 px-2 text-xs ${isAiTaggingDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                      onClick={handleAutoTag}
+                      disabled={isAutoTagging || isAiTaggingDisabled}
+                    >
+                      {isAutoTagging ? (
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                      ) : isAiServiceUnavailable ? (
+                        <WifiOff className="h-3 w-3 mr-1 text-muted-foreground" />
+                      ) : isAiTaggingDisabledByAdmin ? (
+                        <ShieldAlert className="h-3 w-3 mr-1 text-muted-foreground" />
+                      ) : isAiTaggingDisabledByFormat ? (
+                        <AlertCircle className="h-3 w-3 mr-1 text-muted-foreground" />
+                      ) : (
+                        <Sparkles className="h-3 w-3 mr-1" />
+                      )}
+                      Auto-tag
+                    </Button>
+                    {/* Tooltip for service unavailable state */}
+                    {isAiServiceUnavailable && (
+                      <div className="absolute right-0 bottom-full mb-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        <p className="text-muted-foreground">
+                          AI service is not available
+                        </p>
+                      </div>
                     )}
-                    Auto-tag
-                  </Button>
+                    {/* Tooltip for admin-disabled state */}
+                    {!isAiServiceUnavailable && isAiTaggingDisabledByAdmin && (
+                      <div className="absolute right-0 bottom-full mb-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        <p className="text-muted-foreground">
+                          AI tagging has been disabled by an administrator
+                        </p>
+                      </div>
+                    )}
+                    {/* Tooltip for format-disabled state (only show if not admin-disabled or service unavailable) */}
+                    {!isAiServiceUnavailable && !isAiTaggingDisabledByAdmin && isAiTaggingDisabledByFormat && (
+                      <div className="absolute right-0 bottom-full mb-2 px-2 py-1 bg-popover border border-border rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        <p className="text-muted-foreground">
+                          Format not compatible with AI tagging
+                        </p>
+                        {photo.originalMimeType && (
+                          <p className="text-muted-foreground/70 text-[10px]">
+                            Original: {photo.originalMimeType}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
+                {/* Show warning if AI service is unavailable */}
+                {isAiServiceUnavailable && (
+                  <div className="mb-2 p-2 bg-red-500/10 border border-red-500/20 rounded text-xs text-red-600 dark:text-red-400 flex items-start gap-1.5">
+                    <WifiOff className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span>AI service is not running. Start the service to enable auto-tagging.</span>
+                  </div>
+                )}
+                {/* Show warning if AI tagging is disabled by admin */}
+                {!isAiServiceUnavailable && isAiTaggingDisabledByAdmin && (
+                  <div className="mb-2 p-2 bg-slate-500/10 border border-slate-500/20 rounded text-xs text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
+                    <ShieldAlert className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span>AI tagging has been disabled by an administrator.</span>
+                  </div>
+                )}
+                {/* Show warning if AI tagging is disabled for this photo's format */}
+                {!isAiServiceUnavailable && !isAiTaggingDisabledByAdmin && isAiTaggingDisabledByFormat && (
+                  <div className="mb-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+                    <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span>This photo's format ({photo.mimeType}) is not compatible with AI tagging. Re-upload with conversion enabled.</span>
+                  </div>
+                )}
                 <TagEditor photo={photo} onPhotoUpdate={onPhotoUpdate} />
               </div>
             </div>
@@ -404,6 +479,19 @@ export function PhotoPreviewModal({
                   <kbd className="hidden md:inline px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">T</kbd>
                 </Button>
               )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-between"
+                onClick={() => setShowShareModal(true)}
+              >
+                <span className="flex items-center">
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share
+                </span>
+                <kbd className="hidden md:inline px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded">S</kbd>
+              </Button>
 
               <div className="pt-2 border-t border-border mt-2">
                 <Button
@@ -473,6 +561,10 @@ export function PhotoPreviewModal({
                 <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">I</kbd>
               </div>
               <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Share photo</span>
+                <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">S</kbd>
+              </div>
+              <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Delete photo</span>
                 <kbd className="px-2 py-1 text-xs font-mono bg-muted rounded">D</kbd>
               </div>
@@ -488,6 +580,13 @@ export function PhotoPreviewModal({
           </div>
         </div>
       )}
+
+      {/* Share Modal */}
+      <CreateShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        photo={photo}
+      />
     </div>
   );
 }

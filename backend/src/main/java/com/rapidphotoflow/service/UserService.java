@@ -1,5 +1,6 @@
 package com.rapidphotoflow.service;
 
+import com.rapidphotoflow.domain.UserRole;
 import com.rapidphotoflow.dto.SyncUserRequest;
 import com.rapidphotoflow.dto.UpdateProfileRequest;
 import com.rapidphotoflow.dto.UserDTO;
@@ -13,6 +14,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -59,10 +61,13 @@ public class UserService {
     /**
      * Sync user from Cognito - creates or updates local user record.
      * Called after successful Cognito login/signup.
+     * First user to register becomes admin.
      */
     @Transactional
     public UserDTO syncUser(String cognitoSub, SyncUserRequest request) {
         log.info("Syncing user with cognitoSub: {}", cognitoSub);
+
+        boolean isNewUser = userRepository.findByCognitoSub(cognitoSub).isEmpty();
 
         UserEntity user = userRepository.findByCognitoSub(cognitoSub)
             .map(existingUser -> {
@@ -80,8 +85,21 @@ public class UserService {
                     .build();
             });
 
+        // First user becomes admin
+        if (isNewUser) {
+            long userCount = userRepository.count();
+            if (userCount == 0) {
+                // This is the first user - make them admin
+                user.setRole(UserRole.ADMIN);
+                log.info("First user {} is being assigned ADMIN role", request.getEmail());
+            }
+        }
+
+        // Update last login time
+        user.setLastLoginAt(Instant.now());
+
         UserEntity savedUser = userRepository.save(user);
-        log.info("User synced successfully: {}", savedUser.getId());
+        log.info("User synced successfully: {} (role: {})", savedUser.getId(), savedUser.getRole());
 
         return toDTO(savedUser);
     }
@@ -116,7 +134,20 @@ public class UserService {
             .id(entity.getId())
             .email(entity.getEmail())
             .username(entity.getUsername())
+            .role(entity.getRole())
+            .status(entity.getStatus())
+            .lastLoginAt(entity.getLastLoginAt())
             .createdAt(entity.getCreatedAt())
+            .aiTaggingEnabled(entity.getAiTaggingEnabled())
             .build();
+    }
+
+    /**
+     * Check if the current user is an admin.
+     */
+    public boolean isCurrentUserAdmin() {
+        return getCurrentUser()
+            .map(user -> user.getRole() == UserRole.ADMIN)
+            .orElse(false);
     }
 }

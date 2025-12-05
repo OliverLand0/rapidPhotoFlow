@@ -11,7 +11,10 @@ import com.rapidphotoflow.service.S3StorageService;
 import com.rapidphotoflow.domain.EventType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,6 +33,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/seed")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Seed", description = "Demo data seeding endpoints")
 public class SeedController {
 
@@ -37,6 +41,9 @@ public class SeedController {
     private final EventLogRepository eventLogRepository;
     private final S3StorageService s3StorageService;
     private final EventService eventService;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final Random random = new Random();
 
@@ -77,6 +84,36 @@ public class SeedController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(PhotoListResponse.of(dtos));
+    }
+
+    @PostMapping("/migrate")
+    @Operation(summary = "Run database migrations", description = "Add missing columns to database schema")
+    @Transactional
+    public ResponseEntity<String> runMigrations() {
+        StringBuilder result = new StringBuilder();
+
+        // Add role column to users table if it doesn't exist
+        try {
+            entityManager.createNativeQuery(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'USER'"
+            ).executeUpdate();
+            result.append("Added 'role' column to users table\n");
+        } catch (Exception e) {
+            result.append("role column: ").append(e.getMessage()).append("\n");
+        }
+
+        // Add status column to users table if it doesn't exist
+        try {
+            entityManager.createNativeQuery(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ACTIVE'"
+            ).executeUpdate();
+            result.append("Added 'status' column to users table\n");
+        } catch (Exception e) {
+            result.append("status column: ").append(e.getMessage()).append("\n");
+        }
+
+        log.info("Migration completed: {}", result);
+        return ResponseEntity.ok(result.toString());
     }
 
     @DeleteMapping

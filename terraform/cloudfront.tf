@@ -99,6 +99,27 @@ resource "aws_cloudfront_distribution" "main" {
     max_ttl                = 0
   }
 
+  # Public share behavior - forward to ALB (no auth required)
+  ordered_cache_behavior {
+    path_pattern     = "/s/*"
+    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "ALB-Backend"
+
+    forwarded_values {
+      query_string = true
+      headers      = ["Origin", "Access-Control-Request-Headers", "Access-Control-Request-Method"]
+      cookies {
+        forward = "none"
+      }
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+    min_ttl                = 0
+    default_ttl            = 0
+    max_ttl                = 0
+  }
+
   # Custom error responses for SPA routing
   custom_error_response {
     error_code         = 403

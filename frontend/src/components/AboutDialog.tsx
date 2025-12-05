@@ -2,7 +2,6 @@ import { Dialog, DialogHeader, DialogContent } from "./ui/dialog";
 import { Badge } from "./ui/badge";
 import {
   Upload,
-  Cpu,
   Grid3X3,
   CheckCircle,
   XCircle,
@@ -19,7 +18,16 @@ import {
   Shield,
   Cloud,
   Smartphone,
-  User,
+  Share2,
+  FolderTree,
+  Image,
+  Users,
+  ClipboardList,
+  Lock,
+  Eye,
+  Download,
+  LayoutDashboard,
+  Camera,
 } from "lucide-react";
 
 interface AboutDialogProps {
@@ -36,112 +44,186 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
         <section>
           <h3 className="font-semibold text-base mb-2">Project Overview</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            RapidPhotoFlow is a cloud-native photo upload, processing, and review
-            workflow application built for the TeamFront AI Hackathon (November
-            2025). Deployed on AWS with secure authentication, this project
-            demonstrates AI-first engineering principles where the entire codebase
-            was generated using Claude Code.
+            RapidPhotoFlow is a production-ready photo management platform with
+            AI-powered tagging, review workflows, photo sharing, and admin controls.
+            Built for the TeamFront AI Hackathon (November 2025), the entire codebase
+            was generated using Claude Code, demonstrating AI-first engineering principles.
           </p>
         </section>
 
-        {/* Features */}
+        {/* Core Features */}
         <section>
-          <h3 className="font-semibold text-base mb-3">Features</h3>
+          <h3 className="font-semibold text-base mb-3">Core Features</h3>
           <div className="grid gap-3">
             <FeatureItem
-              icon={Shield}
-              title="Secure Authentication"
-              description="AWS Cognito authentication with email verification, password reset, and secure JWT tokens"
-            />
-            <FeatureItem
-              icon={Cloud}
-              title="Cloud Storage"
-              description="Photos stored securely in AWS S3 with CloudFront CDN for fast global delivery"
-            />
-            <FeatureItem
-              icon={Smartphone}
-              title="Mobile Friendly"
-              description="Fully responsive design that works on phones, tablets, and desktops"
-            />
-            <FeatureItem
-              icon={User}
-              title="User Profiles"
-              description="Personal photo library with account management and secure logout"
-            />
-            <FeatureItem
               icon={Upload}
-              title="Multi-Photo Upload"
-              description="Drag-and-drop upload with progress tracking and batch processing (30 files at a time)"
+              title="Batch Photo Upload"
+              description="Drag-and-drop with progress tracking, batch processing (30 files), and format conversion"
             />
             <FeatureItem
-              icon={Cpu}
-              title="Async Processing Pipeline"
-              description="Backend processing with real-time status updates via polling"
-            />
-            <FeatureItem
-              icon={Grid3X3}
-              title="Photo Gallery"
-              description="Visual gallery with status-based tabs, pagination, and full-screen preview"
-            />
-            <FeatureItem
-              icon={Search}
-              title="Search & Filter"
-              description="Search by filename or tag with autocomplete suggestions and multi-tag filtering"
-            />
-            <FeatureItem
-              icon={Tag}
-              title="Photo Tagging"
-              description="Add, edit, and remove tags on individual photos for easy organization"
+              icon={Camera}
+              title="RAW & HEIC Support"
+              description="Full support for camera RAW formats (CR2, NEF, DNG, ARW) and Apple HEIC with preview generation"
             />
             <FeatureItem
               icon={Sparkles}
               title="AI Auto-Tagging"
-              description="Automatic tag generation using OpenAI GPT-4o-mini vision API with bulk upload warnings"
+              description="GPT-4 Vision powered tagging with batch processing, smart scene detection, and cost optimization"
+            />
+            <FeatureItem
+              icon={Grid3X3}
+              title="Photo Gallery"
+              description="Visual gallery with status tabs, pagination, full-screen preview, and keyboard navigation"
             />
             <FeatureItem
               icon={CheckCircle}
               title="Review Workflow"
-              description="Approve or reject processed photos with quick actions and visual feedback"
+              description="Approve, reject, or retry photos with individual and bulk actions"
             />
             <FeatureItem
-              icon={RefreshCw}
-              title="Retry Failed Photos"
-              description="Retry failed photos for reprocessing with a single click"
+              icon={FolderTree}
+              title="Folder Organization"
+              description="Hierarchical folder structure with drag-and-drop organization and breadcrumb navigation"
             />
             <FeatureItem
-              icon={XCircle}
-              title="Bulk Actions"
-              description="Select multiple photos and perform bulk approve, reject, or delete operations"
+              icon={Image}
+              title="Album Collections"
+              description="Create albums to group photos with custom cover images and descriptions"
+            />
+          </div>
+        </section>
+
+        {/* Sharing Features */}
+        <section>
+          <h3 className="font-semibold text-base mb-3">Photo Sharing</h3>
+          <div className="grid gap-3">
+            <FeatureItem
+              icon={Share2}
+              title="Shareable Links"
+              description="Generate public links for photos, albums, or folders with customizable access"
             />
             <FeatureItem
-              icon={Keyboard}
-              title="Keyboard Shortcuts"
-              description="Full keyboard navigation: J/K to navigate, A to approve, R to reject, Space to select"
+              icon={Lock}
+              title="Access Controls"
+              description="Password protection, expiration dates, and view limits for shared content"
+            />
+            <FeatureItem
+              icon={Download}
+              title="Download Options"
+              description="Control whether recipients can download original files or view only"
+            />
+            <FeatureItem
+              icon={Eye}
+              title="Share Analytics"
+              description="Track view counts, download counts, and last access timestamps"
+            />
+          </div>
+        </section>
+
+        {/* Search & Organization */}
+        <section>
+          <h3 className="font-semibold text-base mb-3">Search & Organization</h3>
+          <div className="grid gap-3">
+            <FeatureItem
+              icon={Search}
+              title="Advanced Search"
+              description="Search by filename or tags with autocomplete and multi-tag filtering"
+            />
+            <FeatureItem
+              icon={Tag}
+              title="Smart Tagging"
+              description="AI-generated and manual tags with easy add/remove interface"
             />
             <FeatureItem
               icon={BookmarkCheck}
               title="Saved Views"
-              description="Save custom filter combinations as views for quick access to common workflows"
+              description="Save custom filter combinations for quick access to common workflows"
             />
             <FeatureItem
               icon={Copy}
               title="Duplicate Detection"
-              description="Automatically detect and remove duplicate photos based on file hash"
+              description="Content-hash based duplicate removal to keep your library clean"
+            />
+          </div>
+        </section>
+
+        {/* Admin Features */}
+        <section>
+          <h3 className="font-semibold text-base mb-3">Admin Panel</h3>
+          <div className="grid gap-3">
+            <FeatureItem
+              icon={LayoutDashboard}
+              title="Admin Dashboard"
+              description="System statistics, user counts, storage usage, and upload activity tracking"
+            />
+            <FeatureItem
+              icon={Users}
+              title="User Management"
+              description="View all users, suspend/reactivate accounts, and manage AI tagging permissions"
+            />
+            <FeatureItem
+              icon={ClipboardList}
+              title="Audit Logging"
+              description="Complete history of all admin actions with search and pagination"
+            />
+          </div>
+        </section>
+
+        {/* Power User Features */}
+        <section>
+          <h3 className="font-semibold text-base mb-3">Power User Features</h3>
+          <div className="grid gap-3">
+            <FeatureItem
+              icon={Keyboard}
+              title="Keyboard Shortcuts"
+              description="J/K to navigate, A/R/D to approve/reject/delete, Space to select, ? for help"
+            />
+            <FeatureItem
+              icon={XCircle}
+              title="Bulk Actions"
+              description="Select multiple photos for bulk approve, reject, delete, or AI tag operations"
+            />
+            <FeatureItem
+              icon={RefreshCw}
+              title="Retry Failed"
+              description="Retry failed photos for reprocessing with a single click"
             />
             <FeatureItem
               icon={History}
               title="Event Log"
               description="Real-time activity feed showing all photo events with clickable navigation"
             />
+          </div>
+        </section>
+
+        {/* Platform Features */}
+        <section>
+          <h3 className="font-semibold text-base mb-3">Platform</h3>
+          <div className="grid gap-3">
             <FeatureItem
-              icon={Zap}
-              title="Status Dashboard"
-              description="Live status counts with clickable navigation to filtered gallery views"
+              icon={Shield}
+              title="Secure Authentication"
+              description="AWS Cognito with email verification, password reset, and JWT tokens"
+            />
+            <FeatureItem
+              icon={Cloud}
+              title="Cloud Native"
+              description="AWS S3 storage, CloudFront CDN, ECS Fargate, and RDS PostgreSQL"
+            />
+            <FeatureItem
+              icon={Smartphone}
+              title="Responsive Design"
+              description="Fully responsive interface optimized for phones, tablets, and desktops"
             />
             <FeatureItem
               icon={Moon}
               title="Dark Mode"
-              description="Full dark mode support with system preference detection"
+              description="Full dark mode support with automatic system preference detection"
+            />
+            <FeatureItem
+              icon={Zap}
+              title="Smart Polling"
+              description="Adaptive data refresh that speeds up during processing and slows when stable"
             />
           </div>
         </section>
@@ -155,17 +237,26 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
               <div className="flex flex-wrap gap-1.5">
                 <Badge variant="secondary">React 19</Badge>
                 <Badge variant="secondary">TypeScript</Badge>
-                <Badge variant="secondary">Vite</Badge>
-                <Badge variant="secondary">Tailwind CSS</Badge>
+                <Badge variant="secondary">Vite 7</Badge>
+                <Badge variant="secondary">Tailwind CSS 4</Badge>
+                <Badge variant="secondary">shadcn/ui</Badge>
               </div>
             </div>
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">Backend</p>
               <div className="flex flex-wrap gap-1.5">
-                <Badge variant="secondary">Spring Boot 3</Badge>
+                <Badge variant="secondary">Spring Boot 3.2</Badge>
                 <Badge variant="secondary">Java 21</Badge>
-                <Badge variant="secondary">Python</Badge>
-                <Badge variant="secondary">OpenAI API</Badge>
+                <Badge variant="secondary">PostgreSQL</Badge>
+                <Badge variant="secondary">Spring Data JPA</Badge>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">AI Service</p>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant="secondary">Node.js</Badge>
+                <Badge variant="secondary">Express</Badge>
+                <Badge variant="secondary">OpenAI GPT-4o-mini</Badge>
               </div>
             </div>
             <div>
@@ -175,9 +266,41 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
                 <Badge variant="secondary">API Gateway</Badge>
                 <Badge variant="secondary">S3</Badge>
                 <Badge variant="secondary">CloudFront</Badge>
-                <Badge variant="secondary">RDS PostgreSQL</Badge>
+                <Badge variant="secondary">RDS</Badge>
                 <Badge variant="secondary">Cognito</Badge>
                 <Badge variant="secondary">Terraform</Badge>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Supported Formats */}
+        <section>
+          <h3 className="font-semibold text-base mb-2">Supported Image Formats</h3>
+          <div className="space-y-2">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">Native Support</p>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant="outline">JPEG</Badge>
+                <Badge variant="outline">PNG</Badge>
+                <Badge variant="outline">GIF</Badge>
+                <Badge variant="outline">WebP</Badge>
+                <Badge variant="outline">BMP</Badge>
+                <Badge variant="outline">SVG</Badge>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">Extended Support (with preview)</p>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant="outline">CR2</Badge>
+                <Badge variant="outline">NEF</Badge>
+                <Badge variant="outline">DNG</Badge>
+                <Badge variant="outline">ARW</Badge>
+                <Badge variant="outline">RAF</Badge>
+                <Badge variant="outline">ORF</Badge>
+                <Badge variant="outline">HEIC</Badge>
+                <Badge variant="outline">HEIF</Badge>
+                <Badge variant="outline">TIFF</Badge>
               </div>
             </div>
           </div>

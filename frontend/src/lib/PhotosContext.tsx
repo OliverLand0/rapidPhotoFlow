@@ -12,11 +12,14 @@ interface PhotosContextValue {
   // Upload tracking
   uploadingCount: number;
   setUploadingCount: React.Dispatch<React.SetStateAction<number>>;
+  // Folder filtering
+  currentFolderId: string | null;
+  setCurrentFolderId: (folderId: string | null) => void;
 }
 
 const PhotosContext = createContext<PhotosContextValue | null>(null);
 
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 5000; // Poll every 5 seconds to reduce flashing
 
 export function PhotosProvider({ children }: { children: ReactNode }) {
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -24,11 +27,21 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<Error | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [uploadingCount, setUploadingCount] = useState(0);
+  const [currentFolderId, setCurrentFolderIdState] = useState<string | null>(null);
 
-  const fetchPhotos = useCallback(async () => {
+  const fetchPhotos = useCallback(async (folderId: string | null = null) => {
     try {
+      // Pass folder filter to API - for now we fetch all and filter client-side
+      // The backend supports folderId param but we need to update photoClient
       const data = await photoClient.getPhotos();
-      setPhotos(data.items);
+
+      // Client-side filtering by folder (until we update the API call)
+      let filteredPhotos = data.items;
+      if (folderId !== null) {
+        filteredPhotos = data.items.filter(p => p.folderId === folderId);
+      }
+
+      setPhotos(filteredPhotos);
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
@@ -40,14 +53,24 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
-    await fetchPhotos();
-  }, [fetchPhotos]);
+    await fetchPhotos(currentFolderId);
+  }, [fetchPhotos, currentFolderId]);
 
+  const setCurrentFolderId = useCallback((folderId: string | null) => {
+    setCurrentFolderIdState(folderId);
+  }, []);
+
+  // Refetch when folder changes
   useEffect(() => {
-    fetchPhotos();
-    const interval = setInterval(fetchPhotos, POLL_INTERVAL_MS);
+    fetchPhotos(currentFolderId);
+  }, [currentFolderId, fetchPhotos]);
+
+  // Initial load and polling
+  useEffect(() => {
+    fetchPhotos(currentFolderId);
+    const interval = setInterval(() => fetchPhotos(currentFolderId), POLL_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [fetchPhotos]);
+  }, [fetchPhotos, currentFolderId]);
 
   return (
     <PhotosContext.Provider
@@ -60,6 +83,8 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
         setPhotos,
         uploadingCount,
         setUploadingCount,
+        currentFolderId,
+        setCurrentFolderId,
       }}
     >
       {children}

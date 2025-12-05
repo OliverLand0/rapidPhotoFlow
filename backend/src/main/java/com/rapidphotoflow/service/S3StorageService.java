@@ -79,4 +79,58 @@ public class S3StorageService {
     public String getPhotoUrl(UUID photoId) {
         return String.format("https://%s.s3.amazonaws.com/photos/%s", photoBucket, photoId.toString());
     }
+
+    public String uploadPreview(UUID photoId, byte[] content) {
+        String key = "previews/" + photoId.toString();
+
+        try {
+            PutObjectRequest request = PutObjectRequest.builder()
+                    .bucket(photoBucket)
+                    .key(key)
+                    .contentType("image/jpeg")
+                    .build();
+
+            s3Client.putObject(request, RequestBody.fromBytes(content));
+            log.info("Uploaded preview to S3: {}/{}", photoBucket, key);
+            return key;
+        } catch (Exception e) {
+            log.error("Failed to upload preview to S3: {}", photoId, e);
+            throw new RuntimeException("Failed to upload preview to S3", e);
+        }
+    }
+
+    public byte[] downloadPreview(UUID photoId) {
+        String key = "previews/" + photoId.toString();
+
+        try {
+            GetObjectRequest request = GetObjectRequest.builder()
+                    .bucket(photoBucket)
+                    .key(key)
+                    .build();
+
+            return s3Client.getObjectAsBytes(request).asByteArray();
+        } catch (NoSuchKeyException e) {
+            log.warn("Preview not found in S3: {}", key);
+            return null;
+        } catch (Exception e) {
+            log.error("Failed to download preview from S3: {}", photoId, e);
+            return null;
+        }
+    }
+
+    public void deletePreview(UUID photoId) {
+        String key = "previews/" + photoId.toString();
+
+        try {
+            DeleteObjectRequest request = DeleteObjectRequest.builder()
+                    .bucket(photoBucket)
+                    .key(key)
+                    .build();
+
+            s3Client.deleteObject(request);
+            log.info("Deleted preview from S3: {}/{}", photoBucket, key);
+        } catch (Exception e) {
+            log.error("Failed to delete preview from S3: {}", photoId, e);
+        }
+    }
 }

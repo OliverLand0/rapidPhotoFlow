@@ -6,14 +6,39 @@ import type {
   PhotoStatus,
   StatusCount,
   BulkActionResponse,
+  Folder,
+  FolderListResponse,
+  CreateFolderRequest,
+  Album,
+  AlbumListResponse,
+  CreateAlbumRequest,
+  UpdateAlbumRequest,
+  SharedLink,
+  SharedLinkListResponse,
+  CreateShareRequest,
+  UpdateShareRequest,
+  PublicShareResponse,
+  PublicPhoto,
+  VerifyPasswordResponse,
+  AdminUserListResponse,
+  AdminUserDetail,
+  AdminDashboardStats,
+  AdminAuditLogListResponse,
+  AdminAuditLog,
+  UpdateUserSettingsRequest,
 } from "./types";
 import { getAccessToken } from "../auth/cognitoConfig";
 
 // Use relative URLs in production (CloudFront routes /api/* and /ai/* to backend services)
-// Use localhost in development
+// Use localhost in development, or host.docker.internal when accessed from Docker
 const isDev = import.meta.env.DEV;
-const API_BASE = isDev ? "http://localhost:8080/api" : "/api";
-const AI_SERVICE_BASE = isDev ? "http://localhost:3001/ai" : "/ai";
+const apiHost = isDev
+  ? (typeof window !== 'undefined' && window.location.hostname === 'host.docker.internal'
+      ? 'host.docker.internal'
+      : 'localhost')
+  : '';
+export const API_BASE = isDev ? `http://${apiHost}:8080/api` : "/api";
+const AI_SERVICE_BASE = isDev ? `http://${apiHost}:3001/ai` : "/ai";
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const token = await getAccessToken();
@@ -55,12 +80,17 @@ export const photoClient = {
 
   uploadPhotos(
     files: File[],
-    onProgress?: (progress: number, speed: number) => void
+    onProgress?: (progress: number, speed: number) => void,
+    options?: { convertToCompatible?: boolean }
   ): { promise: Promise<PhotoListResponse>; abort: () => void } {
     const formData = new FormData();
     files.forEach((file) => {
       formData.append("files", file);
     });
+    // Add convertToCompatible flag (defaults to true on backend if not specified)
+    if (options?.convertToCompatible !== undefined) {
+      formData.append("convertToCompatible", String(options.convertToCompatible));
+    }
 
     const xhr = new XMLHttpRequest();
     let startTime = 0;
@@ -196,6 +226,17 @@ export const photoClient = {
     return `${API_BASE}/photos/${id}/content`;
   },
 
+  getPhotoPreviewUrl(id: string): string {
+    return `${API_BASE}/photos/${id}/preview`;
+  },
+
+  getPhotoDisplayUrl(photo: { id: string; hasPreview?: boolean }): string {
+    // Use preview URL if available (for non-browser-displayable formats like RAW)
+    return photo.hasPreview
+      ? `${API_BASE}/photos/${photo.id}/preview`
+      : `${API_BASE}/photos/${photo.id}/content`;
+  },
+
   async addTag(photoId: string, tag: string): Promise<Photo> {
     return fetchJson<Photo>(`${API_BASE}/photos/${photoId}/tags`, {
       method: "POST",
@@ -238,6 +279,17 @@ export interface AutoTagResponse {
   failedTags?: string[];
   applied?: boolean;
   error?: string;
+  photoId?: string;
+}
+
+export interface BatchAutoTagResponse {
+  success: boolean;
+  total: number;
+  processed: number;
+  succeeded: number;
+  failed: number;
+  results: AutoTagResponse[];
+  error?: string;
 }
 
 export const aiClient = {
@@ -247,7 +299,7 @@ export const aiClient = {
   async healthCheck(): Promise<boolean> {
     try {
       // Use /ai/health which works in both dev (localhost:3001/ai/health) and prod (/ai/health via CloudFront)
-      const healthUrl = isDev ? "http://localhost:3001/health" : "/ai/health";
+      const healthUrl = isDev ? `http://${apiHost}:3001/health` : "/ai/health";
       const response = await fetch(healthUrl);
       return response.ok;
     } catch {
@@ -274,6 +326,25 @@ export const aiClient = {
       body: JSON.stringify({ photoId }),
     });
   },
+
+  /**
+   * Batch analyze and apply tags to multiple photos
+   * OPTIMIZED: Combines multiple images per API call to reduce costs
+   * @param photoIds - Array of photo IDs to process
+   * @param imagesPerRequest - Number of images to combine per API call (1-10, default 5)
+   */
+  async batchAutoTag(
+    photoIds: string[],
+    imagesPerRequest: number = 5
+  ): Promise<BatchAutoTagResponse> {
+    return fetchJson<BatchAutoTagResponse>(
+      `${AI_SERVICE_BASE}/batch-analyze-and-apply`,
+      {
+        method: "POST",
+        body: JSON.stringify({ photoIds, imagesPerRequest }),
+      }
+    );
+  },
 };
 
 export const seedClient = {
@@ -290,6 +361,299 @@ export const seedClient = {
     if (!response.ok) {
       throw new Error(`Failed to clear data: ${response.status}`);
     }
+  },
+};
+
+export const folderClient = {
+  async getFolderTree(): Promise<FolderListResponse> {
+    return fetchJson<FolderListResponse>(`${API_BASE}/folders`);
+  },
+
+  async getFolderById(id: string): Promise<Folder> {
+    return fetchJson<Folder>(`${API_BASE}/folders/${id}`);
+  },
+
+  async getFolderPath(id: string): Promise<FolderListResponse> {
+    return fetchJson<FolderListResponse>(`${API_BASE}/folders/${id}/path`);
+  },
+
+  async createFolder(request: CreateFolderRequest): Promise<Folder> {
+    return fetchJson<Folder>(`${API_BASE}/folders`, {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async renameFolder(id: string, name: string): Promise<Folder> {
+    return fetchJson<Folder>(`${API_BASE}/folders/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  async moveFolder(id: string, parentId: string | null): Promise<Folder> {
+    return fetchJson<Folder>(`${API_BASE}/folders/${id}/move`, {
+      method: "PUT",
+      body: JSON.stringify({ parentId }),
+    });
+  },
+
+  async deleteFolder(id: string, deleteContents: boolean = false): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(
+      `${API_BASE}/folders/${id}?deleteContents=${deleteContents}`,
+      {
+        method: "DELETE",
+        headers: authHeaders,
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to delete folder: ${response.status}`);
+    }
+  },
+
+  async movePhotosToFolder(folderId: string | null, photoIds: string[]): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const url = folderId
+      ? `${API_BASE}/folders/${folderId}/photos`
+      : `${API_BASE}/folders/root/photos`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify({ photoIds }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to move photos: ${response.status}`);
+    }
+  },
+};
+
+export const albumClient = {
+  async getAlbums(): Promise<AlbumListResponse> {
+    return fetchJson<AlbumListResponse>(`${API_BASE}/albums`);
+  },
+
+  async getAlbumById(id: string): Promise<Album> {
+    return fetchJson<Album>(`${API_BASE}/albums/${id}`);
+  },
+
+  async getPhotosInAlbum(id: string): Promise<PhotoListResponse> {
+    return fetchJson<PhotoListResponse>(`${API_BASE}/albums/${id}/photos`);
+  },
+
+  async createAlbum(request: CreateAlbumRequest): Promise<Album> {
+    return fetchJson<Album>(`${API_BASE}/albums`, {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async updateAlbum(id: string, request: UpdateAlbumRequest): Promise<Album> {
+    return fetchJson<Album>(`${API_BASE}/albums/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async deleteAlbum(id: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/albums/${id}`, {
+      method: "DELETE",
+      headers: authHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete album: ${response.status}`);
+    }
+  },
+
+  async addPhotosToAlbum(id: string, photoIds: string[]): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/albums/${id}/photos`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify({ photoIds }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to add photos to album: ${response.status}`);
+    }
+  },
+
+  async removePhotosFromAlbum(id: string, photoIds: string[]): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/albums/${id}/photos`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify({ photoIds }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to remove photos from album: ${response.status}`);
+    }
+  },
+
+  async setCoverPhoto(albumId: string, photoId: string): Promise<Album> {
+    return fetchJson<Album>(`${API_BASE}/albums/${albumId}/cover`, {
+      method: "PUT",
+      body: JSON.stringify({ photoId }),
+    });
+  },
+};
+
+// Share client for authenticated share management
+export const shareClient = {
+  async getShares(): Promise<SharedLinkListResponse> {
+    return fetchJson<SharedLinkListResponse>(`${API_BASE}/shares`);
+  },
+
+  async getShareById(id: string): Promise<SharedLink> {
+    return fetchJson<SharedLink>(`${API_BASE}/shares/${id}`);
+  },
+
+  async createShare(request: CreateShareRequest): Promise<SharedLink> {
+    return fetchJson<SharedLink>(`${API_BASE}/shares`, {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async updateShare(id: string, request: UpdateShareRequest): Promise<SharedLink> {
+    return fetchJson<SharedLink>(`${API_BASE}/shares/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async deleteShare(id: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/shares/${id}`, {
+      method: "DELETE",
+      headers: authHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete share: ${response.status}`);
+    }
+  },
+
+  async deactivateShare(id: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/shares/${id}/deactivate`, {
+      method: "PUT",
+      headers: authHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to deactivate share: ${response.status}`);
+    }
+  },
+
+  async activateShare(id: string): Promise<void> {
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/shares/${id}/activate`, {
+      method: "PUT",
+      headers: authHeaders,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to activate share: ${response.status}`);
+    }
+  },
+
+  async getSharesForPhoto(photoId: string): Promise<SharedLinkListResponse> {
+    return fetchJson<SharedLinkListResponse>(`${API_BASE}/shares/photo/${photoId}`);
+  },
+};
+
+// Public share client (no auth required)
+const PUBLIC_SHARE_BASE = isDev ? `http://${apiHost}:8080/s` : "/s";
+
+export const publicShareClient = {
+  async getShareInfo(token: string): Promise<PublicShareResponse> {
+    const response = await fetch(`${PUBLIC_SHARE_BASE}/${token}`);
+    if (!response.ok) {
+      throw new Error(`Failed to get share info: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  async verifyPassword(token: string, password: string): Promise<VerifyPasswordResponse> {
+    const response = await fetch(`${PUBLIC_SHARE_BASE}/${token}/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to verify password: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  getPhotoUrl(token: string): string {
+    return `${PUBLIC_SHARE_BASE}/${token}/photo`;
+  },
+
+  getThumbnailUrl(token: string): string {
+    return `${PUBLIC_SHARE_BASE}/${token}/thumbnail`;
+  },
+
+  getDownloadUrl(token: string): string {
+    return `${PUBLIC_SHARE_BASE}/${token}/download`;
+  },
+
+  async getPhotos(token: string): Promise<PublicPhoto[]> {
+    const response = await fetch(`${PUBLIC_SHARE_BASE}/${token}/photos`);
+    if (!response.ok) {
+      throw new Error(`Failed to get photos: ${response.status}`);
+    }
+    return response.json();
+  },
+};
+
+// Admin client for admin management endpoints
+export const adminClient = {
+  async getDashboardStats(): Promise<AdminDashboardStats> {
+    return fetchJson<AdminDashboardStats>(`${API_BASE}/admin/dashboard`);
+  },
+
+  async getAllUsers(): Promise<AdminUserListResponse> {
+    return fetchJson<AdminUserListResponse>(`${API_BASE}/admin/users`);
+  },
+
+  async getUserDetail(userId: string): Promise<AdminUserDetail> {
+    return fetchJson<AdminUserDetail>(`${API_BASE}/admin/users/${userId}`);
+  },
+
+  async updateUserSettings(userId: string, request: UpdateUserSettingsRequest): Promise<AdminUserDetail> {
+    return fetchJson<AdminUserDetail>(`${API_BASE}/admin/users/${userId}/settings`, {
+      method: "PUT",
+      body: JSON.stringify(request),
+    });
+  },
+
+  async suspendUser(userId: string, reason?: string): Promise<AdminUserDetail> {
+    return fetchJson<AdminUserDetail>(`${API_BASE}/admin/users/${userId}/suspend`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  async reactivateUser(userId: string): Promise<AdminUserDetail> {
+    return fetchJson<AdminUserDetail>(`${API_BASE}/admin/users/${userId}/reactivate`, {
+      method: "POST",
+    });
+  },
+
+  async getAuditLog(page: number = 0, size: number = 50): Promise<AdminAuditLogListResponse> {
+    return fetchJson<AdminAuditLogListResponse>(`${API_BASE}/admin/audit-log?page=${page}&size=${size}`);
+  },
+
+  async getUserAuditLog(userId: string): Promise<AdminAuditLog[]> {
+    return fetchJson<AdminAuditLog[]>(`${API_BASE}/admin/users/${userId}/audit-log`);
   },
 };
 

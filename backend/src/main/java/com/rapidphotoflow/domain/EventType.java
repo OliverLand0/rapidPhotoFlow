@@ -1,6 +1,7 @@
 package com.rapidphotoflow.domain;
 
 public enum EventType {
+    // Photo events
     PHOTO_CREATED,
     PROCESSING_STARTED,
     PROCESSING_COMPLETED,
@@ -11,5 +12,27 @@ public enum EventType {
     RETRY_REQUESTED,
     TAG_ADDED,
     TAG_REMOVED,
-    AUTO_TAGGED
+    AUTO_TAGGED,
+
+    // Folder events
+    FOLDER_CREATED,
+    FOLDER_RENAMED,
+    FOLDER_MOVED,
+    FOLDER_DELETED,
+    PHOTO_MOVED_TO_FOLDER,
+
+    // Album events
+    ALBUM_CREATED,
+    ALBUM_UPDATED,
+    ALBUM_DELETED,
+    PHOTO_ADDED_TO_ALBUM,
+    PHOTO_REMOVED_FROM_ALBUM,
+
+    // Sharing events
+    SHARED_LINK_CREATED,
+    SHARED_LINK_UPDATED,
+    SHARED_LINK_ACCESSED,
+    SHARED_LINK_DEACTIVATED,
+    SHARED_LINK_DELETED,
+    SHARED_CONTENT_DOWNLOADED
 }

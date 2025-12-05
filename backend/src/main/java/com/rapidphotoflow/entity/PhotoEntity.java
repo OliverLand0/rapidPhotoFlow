@@ -54,6 +54,24 @@ public class PhotoEntity {
     @Column(name = "uploaded_by_user_id")
     private UUID uploadedByUserId;
 
+    @Column(name = "folder_id")
+    private UUID folderId;
+
+    @Column(name = "original_mime_type")
+    private String originalMimeType;
+
+    @Column(name = "is_chatgpt_compatible")
+    private Boolean isChatGptCompatible;
+
+    @Column(name = "was_converted")
+    private Boolean wasConverted;
+
+    @Column(name = "ai_tagging_enabled")
+    private Boolean aiTaggingEnabled;
+
+    @Column(name = "preview_s3_key")
+    private String previewS3Key;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "photo_tags", joinColumns = @JoinColumn(name = "photo_id"))
     @Column(name = "tag")
