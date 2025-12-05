@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
+import { TaggingProgressPanel } from "./shared/TaggingProgressPanel";
 import { useAuth } from "../contexts/AuthContext";
 
 const adminNavItems = [
@@ -90,6 +91,9 @@ export function AdminLayout() {
           <span>RapidPhotoFlow</span>
         </div>
       </footer>
+
+      {/* Global AI Tagging Progress Panel */}
+      <TaggingProgressPanel />
     </div>
   );
 }

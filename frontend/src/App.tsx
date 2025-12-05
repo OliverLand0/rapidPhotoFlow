@@ -4,6 +4,7 @@ import { ThemeProvider } from "./lib/ThemeContext";
 import { PhotosProvider } from "./lib/PhotosContext";
 import { FoldersProvider } from "./lib/FoldersContext";
 import { AuthProvider } from "./contexts/AuthContext";
+import { AIServiceProvider } from "./contexts/AIServiceContext";
 import { ToastProvider } from "./components/ui/toast";
 import { Layout } from "./components/Layout";
 import { AdminLayout } from "./components/AdminLayout";
@@ -58,8 +59,9 @@ function App() {
     <ThemeProvider>
       <ToastProvider>
         <AuthProvider>
-          <PhotosProvider>
-            <FoldersProvider>
+          <AIServiceProvider>
+            <PhotosProvider>
+              <FoldersProvider>
               <BrowserRouter>
                 <Routes>
                 {/* Public auth routes (no layout) */}
@@ -103,8 +105,9 @@ function App() {
                 </Route>
               </Routes>
               </BrowserRouter>
-            </FoldersProvider>
-          </PhotosProvider>
+              </FoldersProvider>
+            </PhotosProvider>
+          </AIServiceProvider>
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>

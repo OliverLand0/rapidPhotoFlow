@@ -19,7 +19,7 @@ interface PhotosContextValue {
 
 const PhotosContext = createContext<PhotosContextValue | null>(null);
 
-const POLL_INTERVAL_MS = 1000;
+const POLL_INTERVAL_MS = 5000; // Poll every 5 seconds to reduce flashing
 
 export function PhotosProvider({ children }: { children: ReactNode }) {
   const [photos, setPhotos] = useState<Photo[]>([]);
