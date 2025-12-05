@@ -198,12 +198,12 @@ export function AdminUsersPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link to={`/admin/users/${user.id}`}>
+                      <Link to={`/admin/users/${user.id}`}>
+                        <DropdownMenuItem>
                           <Eye className="h-4 w-4 mr-2" />
                           View Details
-                        </Link>
-                      </DropdownMenuItem>
+                        </DropdownMenuItem>
+                      </Link>
                       {user.status === "ACTIVE" ? (
                         <DropdownMenuItem
                           onClick={() => handleSuspend(user.id)}

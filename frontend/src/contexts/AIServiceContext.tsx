@@ -162,8 +162,10 @@ export function AIServiceProvider({ children }: { children: ReactNode }) {
           // Log any failures
           result.results
             .filter((r: { success: boolean }) => !r.success)
-            .forEach((r: { photoId: string; error?: string }) => {
-              console.error(`[AIService] Failed to tag photo ${r.photoId}:`, r.error);
+            .forEach((r: { photoId?: string; error?: string }) => {
+              if (r.photoId) {
+                console.error(`[AIService] Failed to tag photo ${r.photoId}:`, r.error);
+              }
             });
         } catch (chunkError) {
           console.error(`[AIService] Chunk ${i + 1} failed:`, chunkError);

@@ -5,7 +5,7 @@ import { useEventLog } from "../hooks/useEventLog";
 import { formatRelativeTime } from "../../../lib/utils";
 import { cn } from "../../../lib/utils";
 import { Skeleton } from "../../../components/shared/LoadingSkeleton";
-import { Select } from "../../../components/ui/select";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../../../components/ui/select";
 import type { EventLog, EventType } from "../../../lib/api/types";
 
 interface EventLogPanelProps {
@@ -132,16 +132,17 @@ export function EventLogPanel({ photoId, onPhotoClick }: EventLogPanelProps) {
     <div className="h-full flex flex-col p-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold">Event Log</h3>
-        <Select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value as EventFilter)}
-          className="h-7 text-xs w-auto min-w-[100px]"
-        >
-          {filterOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
+        <Select value={filter} onValueChange={(value) => setFilter(value as EventFilter)}>
+          <SelectTrigger className="h-7 text-xs w-auto min-w-[100px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {filterOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
       </div>
 

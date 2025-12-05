@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import { SearchAutocomplete } from "./SearchAutocomplete";
-import { Select } from "../ui/select";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../ui/select";
 import { Button } from "../ui/button";
 import type { SortOption } from "../../features/photos/hooks/usePhotoFilters";
 
@@ -51,11 +51,18 @@ export function PhotoFilters({
           className="flex-1 sm:max-w-md"
         />
         <div className="w-28 sm:w-40 flex-shrink-0">
-          <Select
-            options={sortOptions}
-            value={sortBy}
-            onChange={(e) => onSortChange(e.target.value as SortOption)}
-          />
+          <Select value={sortBy} onValueChange={(value) => onSortChange(value as SortOption)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              {sortOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
       <div className="flex items-center justify-between sm:justify-start gap-2">
