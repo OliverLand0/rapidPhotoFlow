@@ -25,6 +25,9 @@ public class EventLogEntity {
     @Column(name = "photo_id", nullable = false)
     private UUID photoId;
 
+    @Column(name = "user_id")
+    private UUID userId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false)
     private EventType eventType;
